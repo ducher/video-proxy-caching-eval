@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 #coding=utf-8
 
-from threading import Timer
 from pprint import pprint
-from collections import deque
 import sys
 import getopt
 import time
-
+import queue
+import threading
 
 def TwoMethodsTimer(func1, func2):                        # On @ decorator
     def ClassBuilder(aClass):
@@ -68,9 +67,13 @@ class Connection:
     def __init__(self, peer=None, latency=2, bandwidth=1024):
         self.latency = latency
         # waiting queue for the packets, append() and popleft() are threadafe
-        self.queue = deque()
+        #self.queue = deque()
         self.bandwidth = bandwidth
         self.peer = peer
+        self.q = queue.Queue()
+        self.t = threading.Thread(target=self.worker)
+        self.t.daemon = True
+        self.t.start()
 
     def connect(self, peer):
         if not self.peer:
@@ -82,37 +85,26 @@ class Connection:
     def setLag(self, latency=2):
         self.latency = latency
 
+    # infinite loop running in a thread to simulate the time needed to send the data.
+    # the thread gets the data to send from the Queue q, where the items have two fields:
+    # - delay, how long the task is supposed to take
+    # - data, the data to send, after the delay
+    # private
+    def worker(self):
+        while True:
+            item = self.q.get()
+            data = item['data']
+            time.sleep(item['delay'])
+            self.peer.receivedCallback(data)
+            self.q.task_done()
+
     def send(self, data):
         if self.peer:
-            
-            # queue is empty
-            if not self.queue:
-                self.queue.append(data)
-                t = Timer(self.latency, self.realSend)
-                t.start()
-            # queue is not empty, so probably waiting for another timer. we don't want to start another one
-            else:
-                self.queue.append(data)
+            # inserting the data to send in the Queue with the time it's supposed to take
+            self.q.put({'delay': self.latency, 'data':data})
         else:
             #error, no peer
             print("error, no peer connected")
-
-    # private
-    def realSend(self):
-        # problem: we can sometime have an empty queue as when we check if the queue is empty 
-        try:
-            # append and popleft are threadsafe
-            data = self.queue.popleft()
-            self.peer.receivedCallback(data)
-        except IndexError as err:
-            print("Error: empty queue")
-            #print(errMsg)
-
-        # if there is more to send, we launch a new timer
-        if self.queue:
-            t = Timer(self.latency, self.realSend)
-            t.start()
-
 
 @TwoMethodsTimer("request", "receivedCallback")
 class Client(Peer):
@@ -171,3 +163,8 @@ c2.connectTo(c3).setLag(0.5)
 c1.request('lol')
 c3.request('pouet')
 c3.request('truc')
+c3.request('truc 2')
+time.sleep(4)
+c3.request('truc 3')
+
+time.sleep(10)
