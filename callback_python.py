@@ -3,6 +3,7 @@
 
 from threading import Timer
 from pprint import pprint
+from collections import deque
 import sys
 import getopt
 import time
@@ -12,7 +13,10 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
     def ClassBuilder(aClass):
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
-                self.startTime = 0
+                # stores the begining timestamp when timing
+                self.startTime = 0  
+                # to start all the latencies, for statistics purpose
+                self.latencies = [] 
                 self.wrapped = aClass(*args, **kargs)     # Use enclosing scope name
 
             def startTimer(self):
@@ -20,7 +24,8 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
 
             def stopTimer(self):
                 totalTime = time.time() - self.startTime
-                print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()))
+                self.latencies.append(totalTime)
+                print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
 
             def __getattr__(self, attrname):
                 if attrname is func1:
@@ -29,7 +34,7 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                     self.stopTimer()
                 return getattr(self.wrapped, attrname)    # Delegate to wrapped obj
         return Wrapper
-    return classBuilder
+    return ClassBuilder
 
 class Peer:
     id = 0
@@ -45,7 +50,7 @@ class Peer:
         return self.connection
 
     def packData(self, data):
-        realData = {'sender':self.id, 'data':data}
+        realData = {'sender':self.id, 'payload':data}
         return realData
 
     def request(self, data):
@@ -53,15 +58,18 @@ class Peer:
         self.connection.send(realData)
 
     def receivedCallback(self, data):
-        print(self.name+" received data: "+data['data']+" from: "+str(data['sender']))
+        print(self.name+" received data: "+data['payload']+" from: "+str(data['sender']))
 
     def getID(self):
         return self.id
 
 #unidirectional connection
 class Connection:
-    def __init__(self, peer=None, latency=2):
+    def __init__(self, peer=None, latency=2, bandwidth=1024):
         self.latency = latency
+        # waiting queue for the packets, append() and popleft() are threadafe
+        self.queue = deque()
+        self.bandwidth = bandwidth
         self.peer = peer
 
     def connect(self, peer):
@@ -76,18 +84,45 @@ class Connection:
 
     def send(self, data):
         if self.peer:
-            t = Timer(self.latency, self.peer.receivedCallback, args=[data])
-            t.start()
+            
+            # queue is empty
+            if not self.queue:
+                self.queue.append(data)
+                t = Timer(self.latency, self.realSend)
+                t.start()
+            # queue is not empty, so probably waiting for another timer. we don't want to start another one
+            else:
+                self.queue.append(data)
         else:
             #error, no peer
             print("error, no peer connected")
 
+    # private
+    def realSend(self):
+        # problem: we can sometime have an empty queue as when we check if the queue is empty 
+        try:
+            # append and popleft are threadsafe
+            data = self.queue.popleft()
+            self.peer.receivedCallback(data)
+        except IndexError as err:
+            print("Error: empty queue")
+            #print(errMsg)
+
+        # if there is more to send, we launch a new timer
+        if self.queue:
+            t = Timer(self.latency, self.realSend)
+            t.start()
+
+
 @TwoMethodsTimer("request", "receivedCallback")
 class Client(Peer):
-    id = 0
+    bufferSize = 0
 
-    def requestMedia(mediaID):
+    def requestMedia(self, mediaID):
         self.request("getmedia:"+mediaID)
+
+    def setBufferSize(self, bufferSize):
+        self.bufferSize = bufferSize
 
 
 
@@ -105,7 +140,7 @@ class Proxy(Peer):
         return self.connection[id]
 
     def receivedCallback(self, data):
-        realData = self.packData("There you go: "+ data['data'])
+        realData = self.packData("There you go: "+ data['payload'])
         self.connection[data['sender']].send(realData)
 
 
