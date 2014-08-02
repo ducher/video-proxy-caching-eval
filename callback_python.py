@@ -48,8 +48,11 @@ class Peer:
         self.connection = Connection(peer)
         return self.connection
 
-    def packData(self, data):
-        realData = {'sender':self.id, 'payload':data}
+    # size in mb
+    def packData(self, data, size = None):
+        #TODO replace the plSize
+        plSize = size or len(data)/10
+        realData = {'sender':self.id, 'payload':data, 'plSize': plSize}
         return realData
 
     def request(self, data):
@@ -64,6 +67,8 @@ class Peer:
 
 #unidirectional connection
 class Connection:
+    # bandwidth in mb/s
+    # latency in seconds
     def __init__(self, peer=None, latency=2, bandwidth=1024):
         self.latency = latency
         # waiting queue for the packets, append() and popleft() are threadafe
@@ -100,8 +105,12 @@ class Connection:
 
     def send(self, data):
         if self.peer:
+            # calculating the time the packet would need to be transmitted over this connection
+            delay = self.latency+data['plSize']/self.bandwidth
+            #DEBUG
+            #print("Delay: "+str(delay)+" for data: "+str(data))
             # inserting the data to send in the Queue with the time it's supposed to take
-            self.q.put({'delay': self.latency, 'data':data})
+            self.q.put({'delay': delay, 'data':data})
         else:
             #error, no peer
             print("error, no peer connected")
@@ -132,7 +141,7 @@ class Proxy(Peer):
         return self.connection[id]
 
     def receivedCallback(self, data):
-        realData = self.packData("There you go: "+ data['payload'])
+        realData = self.packData("There you go: "+ data['payload'], 2048)
         self.connection[data['sender']].send(realData)
 
 
