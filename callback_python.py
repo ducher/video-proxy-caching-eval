@@ -22,9 +22,11 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                 self.startTime = time.time()
 
             def stopTimer(self):
-                totalTime = time.time() - self.startTime
-                self.latencies.append(totalTime)
-                print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
+                if self.startTime != 0:
+                    totalTime = time.time() - self.startTime
+                    self.latencies.append(totalTime)
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
+                    self.startTime = 0
 
             def __getattr__(self, attrname):
                 if attrname is func1:
@@ -36,6 +38,10 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
     return ClassBuilder
 
 class Peer:
+    # IDs conventions:
+    # 0 for the proxy
+    # from 1 to 1000 for VideoServers
+    # from 1001 to infinity for the clients
     id = 0
     name = ""
     connection = None
@@ -49,18 +55,18 @@ class Peer:
         return self.connection
 
     # size in mb
-    def packData(self, data, size = None):
+    def packData(self, data, size = None, type = 'other'):
         #TODO replace the plSize
         plSize = size or len(data)/10
-        realData = {'sender':self.id, 'payload':data, 'plSize': plSize}
+        realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type}
         return realData
 
-    def request(self, data):
-        realData = self.packData(data)
+    def request(self, data, size = None, type = 'other'):
+        realData = self.packData(data, size, type)
         self.connection.send(realData)
 
     def receivedCallback(self, data):
-        print(self.name+" received data: "+data['payload']+" from: "+str(data['sender']))
+        print(self.name+" received data: "+str(data['payload'])+" from: "+str(data['sender']))
 
     def getID(self):
         return self.id
@@ -115,18 +121,16 @@ class Connection:
             #error, no peer
             print("error, no peer connected")
 
-@TwoMethodsTimer("request", "receivedCallback")
+@TwoMethodsTimer("requestMedia", "receivedCallback")
 class Client(Peer):
     bufferSize = 0
 
     def requestMedia(self, mediaID):
-        self.request("getmedia:"+mediaID)
+        payload = {'idServer': 1, 'idVideo': mediaID}
+        self.request(payload, None, 'videoRequest')
 
     def setBufferSize(self, bufferSize):
         self.bufferSize = bufferSize
-
-
-
 
 class Proxy(Peer):
     connection = dict()
@@ -144,11 +148,22 @@ class Proxy(Peer):
         realData = self.packData("There you go: "+ data['payload'], 2048)
         self.connection[data['sender']].send(realData)
 
+class VideoServer(Peer):
+
+    def receivedCallback(self, data):
+        if data['plType'] is 'videoRequest':
+            req = data['payload']
+            response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
+            #respData = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
+            respData = self.packData(response, response['size'], 'video')
+            self.connection.send(respData)
+        req = data['payload']
 
 
-c1 = Client(1, "c1")
-c2 = Client(2, "c2")
-c3 = Client(3, "c3")
+
+c1 = Client(1001, "c1")
+c2 = Client(1002, "c2")
+c3 = Client(1003, "c3")
 
 p = Proxy(0, "Proxy")
 
@@ -169,11 +184,20 @@ c3.connectTo(c2).setLag(0.5)
 c2.connectTo(c3).setLag(0.5)
 '''
 
-c1.request('lol')
-c3.request('pouet')
-c3.request('truc')
-c3.request('truc 2')
+c1.request("lol")
+c3.request("pouet")
+c3.request("truc")
+c3.request("truc 2")
 time.sleep(4)
-c3.request('truc 3')
+c3.request("truc 3")
+
+
+s = VideoServer(1, "s1")
+c4 = Client(1004, "c4")
+
+c4.connectTo(s).setLag(0.1)
+s.connectTo(c4).setLag(0.2)
+
+c4.requestMedia(1337)
 
 time.sleep(10)
