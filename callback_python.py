@@ -45,6 +45,7 @@ class Peer:
     id = 0
     name = ""
     connection = None
+    numPacket = 0
 
     def __init__(self, id, name=None):
         self.name = name or ""
@@ -55,10 +56,13 @@ class Peer:
         return self.connection
 
     # size in mb
-    def packData(self, data, size = None, type = 'other'):
+    def packData(self, data, size = None, type = 'other', responseTo = None):
         #TODO replace the plSize
         plSize = size or len(data)/10
-        realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type}
+        realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type, 'packetId': self.numPacket}
+        self.numPacket += 1
+        if responseTo:
+            realData['responseTo'] = responseTo
         return realData
 
     def request(self, data, size = None, type = 'other'):
@@ -125,8 +129,8 @@ class Connection:
 class Client(Peer):
     bufferSize = 0
 
-    def requestMedia(self, mediaID):
-        payload = {'idServer': 1, 'idVideo': mediaID}
+    def requestMedia(self, mediaId, serverId = 1):
+        payload = {'idServer': serverId, 'idVideo': mediaId}
         self.request(payload, None, 'videoRequest')
 
     def setBufferSize(self, bufferSize):
@@ -134,7 +138,7 @@ class Client(Peer):
 
 class Proxy(Peer):
     connection = dict()
-
+    activeRequests = dict()
     '''def __init__(self, id, name=None):
         Peer.__init__(self, id, name)
         connection = dict()'''
@@ -144,9 +148,24 @@ class Proxy(Peer):
         self.connection[id] = Connection(peer)
         return self.connection[id]
 
+    def packForward(self, data):
+        forwardData = self.packData(data['payload'], data['plSize'], data['plType'])
+        self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
+        return forwardData;
+
     def receivedCallback(self, data):
-        realData = self.packData("There you go: "+ data['payload'], 2048)
-        self.connection[data['sender']].send(realData)
+        if 'responseTo' in data:
+            responseTo = data['responseTo']
+            reqInfo = self.activeRequests[responseTo]
+            newData = self.packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
+            self.connection[reqInfo['origSender']].send(newData)
+            del self.activeRequests[responseTo]
+        elif data['plType'] is 'videoRequest':
+            forwardData = self.packForward(data)
+            self.connection[data['payload']['idServer']].send(forwardData)
+        elif data['plType'] is 'other':
+            realData = self.packData("There you go: "+ data['payload'], 2048)
+            self.connection[data['sender']].send(realData)
 
 class VideoServer(Peer):
 
@@ -155,7 +174,7 @@ class VideoServer(Peer):
             req = data['payload']
             response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
             #respData = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
-            respData = self.packData(response, response['size'], 'video')
+            respData = self.packData(response, response['size'], 'video', data['packetId'])
             self.connection.send(respData)
         req = data['payload']
 
@@ -192,12 +211,21 @@ time.sleep(4)
 c3.request("truc 3")
 
 
-s = VideoServer(1, "s1")
+# testing direct access to a video server
+s = VideoServer(2, "s2")
 c4 = Client(1004, "c4")
 
 c4.connectTo(s).setLag(0.1)
 s.connectTo(c4).setLag(0.2)
 
-c4.requestMedia(1337)
+c4.requestMedia(1337, 2)
+
+# testing access to a video through the proxy server
+s = VideoServer(1, "s1")
+s.connectTo(p).setLag(0.1)
+p.connectTo(s).setLag(0.1)
+
+
+c1.requestMedia(9001, 1)
 
 time.sleep(10)
