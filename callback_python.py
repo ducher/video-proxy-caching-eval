@@ -56,7 +56,8 @@ class Peer:
         return self.connection
 
     # size in mb
-    def packData(self, data, size = None, type = 'other', responseTo = None):
+    # protected
+    def _packData(self, data, size = None, type = 'other', responseTo = None):
         #TODO replace the plSize
         plSize = size or len(data)/10
         realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type, 'packetId': self.numPacket}
@@ -66,7 +67,7 @@ class Peer:
         return realData
 
     def request(self, data, size = None, type = 'other'):
-        realData = self.packData(data, size, type)
+        realData = self._packData(data, size, type)
         self.connection.send(realData)
 
     def receivedCallback(self, data):
@@ -148,8 +149,10 @@ class Proxy(Peer):
         self.connection[id] = Connection(peer)
         return self.connection[id]
 
-    def packForward(self, data):
-        forwardData = self.packData(data['payload'], data['plSize'], data['plType'])
+
+    # private
+    def __packForward(self, data):
+        forwardData = self._packData(data['payload'], data['plSize'], data['plType'])
         self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
         return forwardData;
 
@@ -157,14 +160,14 @@ class Proxy(Peer):
         if 'responseTo' in data:
             responseTo = data['responseTo']
             reqInfo = self.activeRequests[responseTo]
-            newData = self.packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
+            newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
             self.connection[reqInfo['origSender']].send(newData)
             del self.activeRequests[responseTo]
         elif data['plType'] is 'videoRequest':
-            forwardData = self.packForward(data)
+            forwardData = self.__packForward(data)
             self.connection[data['payload']['idServer']].send(forwardData)
         elif data['plType'] is 'other':
-            realData = self.packData("There you go: "+ data['payload'], 2048)
+            realData = self._packData("There you go: "+ data['payload'], 2048)
             self.connection[data['sender']].send(realData)
 
 class VideoServer(Peer):
@@ -174,7 +177,7 @@ class VideoServer(Peer):
             req = data['payload']
             response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
             #respData = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
-            respData = self.packData(response, response['size'], 'video', data['packetId'])
+            respData = self._packData(response, response['size'], 'video', data['packetId'])
             self.connection.send(respData)
         req = data['payload']
 
