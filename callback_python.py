@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 #coding=utf-8
 
+# units:
+# data in kb
+# time in seconds
+
 from pprint import pprint
 import sys
 import getopt
@@ -15,8 +19,15 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                 # stores the begining timestamp when timing
                 self.startTime = 0  
                 # to start all the latencies, for statistics purpose
-                self.latencies = [] 
+                self.latencies = []
                 self.wrapped = aClass(*args, **kargs)     # Use enclosing scope name
+
+                self.oldFunc1 = self.wrapped.__getattribute__(func1)
+                self.oldFunc2 = self.wrapped.__getattribute__(func2)
+
+                self.wrapped.__setattr__(func1, self.newFunc1)
+                self.wrapped.__setattr__(func2, self.newFunc2)
+
 
             def startTimer(self):
                 self.startTime = time.time()
@@ -28,11 +39,16 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                     print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
                     self.startTime = 0
 
+            def newFunc1(self, *args, **kargs):
+                self.startTimer()
+                return self.oldFunc1( *args, **kargs)
+
+            def newFunc2(self, *args, **kargs):
+                self.stopTimer()
+                return self.oldFunc2( *args, **kargs)
+
             def __getattr__(self, attrname):
-                if attrname is func1:
-                    self.startTimer()
-                if attrname is func2:
-                    self.stopTimer()
+                # to keep the original methods working
                 return getattr(self.wrapped, attrname)    # Delegate to wrapped obj
         return Wrapper
     return ClassBuilder
@@ -126,9 +142,10 @@ class Connection:
             #error, no peer
             print("error, no peer connected")
 
-@TwoMethodsTimer("requestMedia", "receivedCallback")
+@TwoMethodsTimer("requestMedia", "startPlayback")
 class Client(Peer):
-    bufferSize = 0
+    bufferSize = 1024
+    playBuffer = 0
 
     def requestMedia(self, mediaId, serverId = 1):
         payload = {'idServer': serverId, 'idVideo': mediaId}
@@ -136,6 +153,17 @@ class Client(Peer):
 
     def setBufferSize(self, bufferSize):
         self.bufferSize = bufferSize
+
+    def receivedCallback(self, data):
+        if data['plType'] is 'video':
+            self.playBuffer += data['plSize']
+            if self.playBuffer > self.bufferSize:
+                self.startPlayback()
+        else:
+            Peer.receivedCallback(self, data)
+
+    def startPlayback(self):
+        print("Video is playing")
 
 class Proxy(Peer):
     connection = dict()
@@ -183,9 +211,9 @@ class VideoServer(Peer):
 
 
 
-c1 = Client(1001, "c1")
-c2 = Client(1002, "c2")
-c3 = Client(1003, "c3")
+c1 = Peer(1001, "c1")
+c2 = Peer(1002, "c2")
+c3 = Peer(1003, "c3")
 
 p = Proxy(0, "Proxy")
 
@@ -204,8 +232,8 @@ c2.connectTo(c1)
 
 c3.connectTo(c2).setLag(0.5)
 c2.connectTo(c3).setLag(0.5)
-'''
-
+''' 
+# testing basic requests
 c1.request("lol")
 c3.request("pouet")
 c3.request("truc")
@@ -218,6 +246,8 @@ c3.request("truc 3")
 s = VideoServer(2, "s2")
 c4 = Client(1004, "c4")
 
+#print("DU LOL: "+str(c4.__dict__))
+
 c4.connectTo(s).setLag(0.1)
 s.connectTo(c4).setLag(0.2)
 
@@ -225,10 +255,13 @@ c4.requestMedia(1337, 2)
 
 # testing access to a video through the proxy server
 s = VideoServer(1, "s1")
+c10 = Client(1010, "c10")
+c10.connectTo(p).setLag(0.1)
+p.connectTo(c10).setLag(0.2)
 s.connectTo(p).setLag(0.1)
 p.connectTo(s).setLag(0.1)
 
 
-c1.requestMedia(9001, 1)
+c10.requestMedia(9001, 1)
 
 time.sleep(10)
