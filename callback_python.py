@@ -200,15 +200,28 @@ class Proxy(Peer):
 
 class VideoServer(Peer):
 
+    # private
+    __db = dict()
+    __curId = 0
+
     def receivedCallback(self, data):
         if data['plType'] is 'videoRequest':
             req = data['payload']
-            response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
+            #response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
             #respData = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
+            response = self.__db[req['idVideo']]
             respData = self._packData(response, response['size'], 'video', data['packetId'])
             self.connection.send(respData)
         req = data['payload']
 
+    def addVideo(self, duration, size, bitrate, title='', description='', id=None):
+        if id:
+            newId = id
+        else:
+            newId = __curId
+            __curId += 1
+
+        self.__db[newId] = {'idVideo': newId, 'duration': duration, 'size': size, 'bitrate': bitrate, 'title': title, 'description': description}
 
 
 c1 = Peer(1001, "c1")
@@ -243,24 +256,27 @@ c3.request("truc 3")
 
 
 # testing direct access to a video server
-s = VideoServer(2, "s2")
+s2 = VideoServer(2, "s2")
 c4 = Client(1004, "c4")
 
 #print("DU LOL: "+str(c4.__dict__))
 
-c4.connectTo(s).setLag(0.1)
-s.connectTo(c4).setLag(0.2)
+c4.connectTo(s2).setLag(0.1)
+s2.connectTo(c4).setLag(0.2)
+
+s2.addVideo(60, 2048, 2048/60, 'Video', 'A video', 1337)
 
 c4.requestMedia(1337, 2)
 
 # testing access to a video through the proxy server
-s = VideoServer(1, "s1")
+s1 = VideoServer(1, "s1")
 c10 = Client(1010, "c10")
 c10.connectTo(p).setLag(0.1)
 p.connectTo(c10).setLag(0.2)
-s.connectTo(p).setLag(0.1)
-p.connectTo(s).setLag(0.1)
+s1.connectTo(p).setLag(0.1)
+p.connectTo(s1).setLag(0.1)
 
+s1.addVideo(60, 2048, 2048/60, 'Video', 'A video', 9001)
 
 c10.requestMedia(9001, 1)
 
