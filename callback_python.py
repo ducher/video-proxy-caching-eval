@@ -11,6 +11,9 @@ import getopt
 import time
 import queue
 import threading
+# for abstract classes
+import abc
+from abc import ABCMeta
 
 def TwoMethodsTimer(func1, func2):                        # On @ decorator
     def ClassBuilder(aClass):
@@ -165,9 +168,9 @@ class Client(Peer):
     def startPlayback(self):
         print("Video is playing")
 
-class Proxy(Peer):
+# bare bone proxy, doing almost nothing
+class BaseProxy(Peer):
     connection = dict()
-    activeRequests = dict()
     '''def __init__(self, id, name=None):
         Peer.__init__(self, id, name)
         connection = dict()'''
@@ -177,6 +180,34 @@ class Proxy(Peer):
         self.connection[id] = Connection(peer)
         return self.connection[id]
 
+# base for more sophisticated proxy working with the requests defined in the specs
+class AbstractProxy(BaseProxy, metaclass=ABCMeta):
+
+    @abc.abstractmethod
+    def _processVideoRequest(self, data):
+        """ process a video request, usually look into the cache to get it or get it from the video server """
+        return
+
+    @abc.abstractmethod
+    def _processResponseTo(self, data):
+        """ process a response to a previous request, usually a request for a video """
+        return
+
+    @abc.abstractmethod
+    def _processOther(self, data):
+        """ process the unknown, can be anything else """
+        return
+
+    def receivedCallback(self, data):
+        if 'responseTo' in data:
+            self._processResponseTo(data)
+        elif data['plType'] is 'videoRequest':
+            self._processVideoRequest(data)
+        elif data['plType'] is 'other':
+            self._processOther(data)
+
+class ForwardProxy(AbstractProxy):
+    activeRequests = dict()
 
     # private
     def __packForward(self, data):
@@ -184,19 +215,62 @@ class Proxy(Peer):
         self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
         return forwardData;
 
-    def receivedCallback(self, data):
-        if 'responseTo' in data:
-            responseTo = data['responseTo']
-            reqInfo = self.activeRequests[responseTo]
-            newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
-            self.connection[reqInfo['origSender']].send(newData)
-            del self.activeRequests[responseTo]
-        elif data['plType'] is 'videoRequest':
+    def _processVideoRequest(self, data):
+        forwardData = self.__packForward(data)
+        self.connection[data['payload']['idServer']].send(forwardData)
+
+    def _processResponseTo(self, data):
+        responseTo = data['responseTo']
+        reqInfo = self.activeRequests[responseTo]
+        newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
+        self.connection[reqInfo['origSender']].send(newData)
+        del self.activeRequests[responseTo]
+
+    def _processOther(self, data):
+        realData = self._packData("There you go: "+ data['payload'], 2048)
+        self.connection[data['sender']].send(realData)
+
+class FIFOProxy(AbstractProxy):
+    __cachedb = dict()
+    __cacheSize = 3072
+
+class UnlimitedProxy(AbstractProxy):
+    __cachedb = dict()
+    activeRequests = dict()
+
+    # private
+    def __packForward(self, data):
+        forwardData = self._packData(data['payload'], data['plSize'], data['plType'])
+        self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
+        return forwardData;
+
+    def _processVideoRequest(self, data):
+        pl = data['payload']
+        if pl['idVideo'] in self.__cachedb:
+            video = self.__cachedb[pl['idVideo']]
+            newData = self._packData(video, video['size'], 'video', data['packetId'])
+            self.connection[data['sender']].send(newData)
+        else:
             forwardData = self.__packForward(data)
             self.connection[data['payload']['idServer']].send(forwardData)
-        elif data['plType'] is 'other':
-            realData = self._packData("There you go: "+ data['payload'], 2048)
-            self.connection[data['sender']].send(realData)
+
+    def _processResponseTo(self, data):
+        responseTo = data['responseTo']
+        reqInfo = self.activeRequests[responseTo]
+
+        pl = data['payload']
+        # cache the video, unconditionally
+        if pl['idVideo'] not in self.__cachedb:
+            self.__cachedb[pl['idVideo']]=pl
+
+        newData = self._packData(pl, data['plSize'], data['plType'], reqInfo['origPackId'])
+        self.connection[reqInfo['origSender']].send(newData)
+        del self.activeRequests[responseTo]
+
+    def _processOther(self, data):
+        realData = self._packData("There you go: "+ data['payload'], 2048)
+        self.connection[data['sender']].send(realData)
+
 
 class VideoServer(Peer):
 
@@ -228,7 +302,9 @@ c1 = Peer(1001, "c1")
 c2 = Peer(1002, "c2")
 c3 = Peer(1003, "c3")
 
-p = Proxy(0, "Proxy")
+# to test unlimited proxy
+#p = UnlimitedProxy(0, "Proxy")
+p = ForwardProxy(0, "Proxy")
 
 c1.connectTo(p)
 p.connectTo(c1)
@@ -279,5 +355,8 @@ p.connectTo(s1).setLag(0.1)
 s1.addVideo(60, 2048, 2048/60, 'Video', 'A video', 9001)
 
 c10.requestMedia(9001, 1)
+# to test unlimited proxy
+#time.sleep(5)
+#c10.requestMedia(9001, 1)
 
 time.sleep(10)
