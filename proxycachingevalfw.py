@@ -14,47 +14,7 @@ import threading
 # for abstract classes
 import abc
 from abc import ABCMeta
-
-def TwoMethodsTimer(func1, func2):                        # On @ decorator
-    def ClassBuilder(aClass):
-        class Wrapper:
-            def __init__(self, *args, **kargs):           # On instance creation
-                # stores the begining timestamp when timing
-                self.startTime = 0  
-                # to start all the latencies, for statistics purpose
-                self.latencies = []
-                self.wrapped = aClass(*args, **kargs)     # Use enclosing scope name
-
-                self.oldFunc1 = self.wrapped.__getattribute__(func1)
-                self.oldFunc2 = self.wrapped.__getattribute__(func2)
-
-                self.wrapped.__setattr__(func1, self.newFunc1)
-                self.wrapped.__setattr__(func2, self.newFunc2)
-
-
-            def startTimer(self):
-                self.startTime = time.time()
-
-            def stopTimer(self):
-                if self.startTime != 0:
-                    totalTime = time.time() - self.startTime
-                    self.latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
-                    self.startTime = 0
-
-            def newFunc1(self, *args, **kargs):
-                self.startTimer()
-                return self.oldFunc1( *args, **kargs)
-
-            def newFunc2(self, *args, **kargs):
-                self.stopTimer()
-                return self.oldFunc2( *args, **kargs)
-
-            def __getattr__(self, attrname):
-                # to keep the original methods working
-                return getattr(self.wrapped, attrname)    # Delegate to wrapped obj
-        return Wrapper
-    return ClassBuilder
+from metrics import *
 
 class Peer:
     # IDs conventions:
@@ -65,6 +25,8 @@ class Peer:
     name = ""
     connection = None
     numPacket = 0
+
+    receivedData = None
 
     def __init__(self, id, name=None):
         self.name = name or ""
@@ -81,7 +43,7 @@ class Peer:
         plSize = size or len(data)/10
         realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type, 'packetId': self.numPacket}
         self.numPacket += 1
-        if responseTo:
+        if responseTo != None:
             realData['responseTo'] = responseTo
         return realData
 
@@ -90,6 +52,7 @@ class Peer:
         self.connection.send(realData)
 
     def receivedCallback(self, data):
+        self.receivedData = data
         print(self.name+" received data: "+str(data['payload'])+" from: "+str(data['sender']))
 
     def getID(self):
@@ -119,6 +82,11 @@ class Connection:
 
     def setLag(self, latency=2):
         self.latency = latency
+        return self
+
+    def setBandwidth(self, bandwidth=1024):
+        self.bandwidth = bandwidth
+        return self
 
     # infinite loop running in a thread to simulate the time needed to send the data.
     # the thread gets the data to send from the Queue q, where the items have two fields:
@@ -158,6 +126,7 @@ class Client(Peer):
         self.bufferSize = bufferSize
 
     def receivedCallback(self, data):
+        self.receivedData = data
         if data['plType'] is 'video':
             self.playBuffer += data['plSize']
             if self.playBuffer > self.bufferSize:
@@ -227,7 +196,7 @@ class ForwardProxy(AbstractProxy):
         del self.activeRequests[responseTo]
 
     def _processOther(self, data):
-        realData = self._packData("There you go: "+ data['payload'], 2048)
+        realData = self._packData("There you go: "+ data['payload'], responseTo=data['packetId'])
         self.connection[data['sender']].send(realData)
 
 class FIFOProxy(AbstractProxy):
@@ -268,9 +237,8 @@ class UnlimitedProxy(AbstractProxy):
         del self.activeRequests[responseTo]
 
     def _processOther(self, data):
-        realData = self._packData("There you go: "+ data['payload'], 2048)
+        realData = self._packData("There you go: "+ data['payload'], 2048, responseTo=data['packetId'])
         self.connection[data['sender']].send(realData)
-
 
 class VideoServer(Peer):
 
@@ -288,75 +256,14 @@ class VideoServer(Peer):
             self.connection.send(respData)
         req = data['payload']
 
-    def addVideo(self, duration, size, bitrate, title='', description='', id=None):
-        if id:
-            newId = id
+    def addVideo(self, duration=0, size=0, bitrate=0, title='', description='', id=None, video=None):
+        if video:
+            self.__db[video['idVideo']] = video
         else:
-            newId = __curId
-            __curId += 1
+            if id:
+                newId = id
+            else:
+                newId = __curId
+                __curId += 1
 
-        self.__db[newId] = {'idVideo': newId, 'duration': duration, 'size': size, 'bitrate': bitrate, 'title': title, 'description': description}
-
-
-c1 = Peer(1001, "c1")
-c2 = Peer(1002, "c2")
-c3 = Peer(1003, "c3")
-
-# to test unlimited proxy
-#p = UnlimitedProxy(0, "Proxy")
-p = ForwardProxy(0, "Proxy")
-
-c1.connectTo(p)
-p.connectTo(c1)
-
-c3.connectTo(p).setLag(0.5)
-p.connectTo(c3).setLag(0.5)
-'''
-c1 = Client(1, "c1")
-c2 = Client(2, "c2")
-c3 = Client(3, "c3")
-
-c1.connectTo(c2)
-c2.connectTo(c1)
-
-c3.connectTo(c2).setLag(0.5)
-c2.connectTo(c3).setLag(0.5)
-''' 
-# testing basic requests
-c1.request("lol")
-c3.request("pouet")
-c3.request("truc")
-c3.request("truc 2")
-time.sleep(4)
-c3.request("truc 3")
-
-
-# testing direct access to a video server
-s2 = VideoServer(2, "s2")
-c4 = Client(1004, "c4")
-
-#print("DU LOL: "+str(c4.__dict__))
-
-c4.connectTo(s2).setLag(0.1)
-s2.connectTo(c4).setLag(0.2)
-
-s2.addVideo(60, 2048, 2048/60, 'Video', 'A video', 1337)
-
-c4.requestMedia(1337, 2)
-
-# testing access to a video through the proxy server
-s1 = VideoServer(1, "s1")
-c10 = Client(1010, "c10")
-c10.connectTo(p).setLag(0.1)
-p.connectTo(c10).setLag(0.2)
-s1.connectTo(p).setLag(0.1)
-p.connectTo(s1).setLag(0.1)
-
-s1.addVideo(60, 2048, 2048/60, 'Video', 'A video', 9001)
-
-c10.requestMedia(9001, 1)
-# to test unlimited proxy
-#time.sleep(5)
-#c10.requestMedia(9001, 1)
-
-time.sleep(10)
+            self.__db[newId] = {'idVideo': newId, 'duration': duration, 'size': size, 'bitrate': bitrate, 'title': title, 'description': description}
