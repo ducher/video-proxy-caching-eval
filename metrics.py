@@ -48,7 +48,8 @@ def PacketTimer(func1, func2):                        # On @ decorator
         return Wrapper
     return ClassBuilder
 
-
+# Time how long between the last call of func1 and first call of func2.
+# Once func2 has been called, can time another interval.
 def TwoMethodsTimer(func1, func2):                        # On @ decorator
     def ClassBuilder(aClass):
         class Wrapper:

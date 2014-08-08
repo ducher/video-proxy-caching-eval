@@ -73,8 +73,9 @@ class TestVideoServer(unittest.TestCase):
 		self.s2 = VideoServer(2, "s2")
 		self.c4 = Client(1004, "c4")
 
-		self.c4.connectTo(self.s2).setLag(0.1).setBandwidth(2048)
-		self.s2.connectTo(self.c4).setLag(0.1).setBandwidth(2048)
+		# we set the chunk to a big size so that we can determine accurately the download time
+		self.c4.connectTo(self.s2).setLag(0.1).setBandwidth(2048).setMaxChunk(32000)
+		self.s2.connectTo(self.c4).setLag(0.1).setBandwidth(2048).setMaxChunk(32000)
 
 		self.video = {'idVideo': 1337, 'duration': 60, 'size': 2048, 'bitrate': 2048/60, 'title': 'Video', 'description': 'A video'}
 
@@ -85,6 +86,8 @@ class TestVideoServer(unittest.TestCase):
 		time.sleep(2)
 
 		self.assertEqual(self.c4.receivedData['payload'], self.video)
+
+		time.sleep(10)
 
 	def test_add_video_access(self):
 		self.s2.addVideo(60, 2048, 2048/60, 'Video', 'A video', 1337)
@@ -100,15 +103,15 @@ class TestVideoServer(unittest.TestCase):
 		self.c4.requestMedia(1, 2)
 
 		time.sleep(5)
-
+		# should take 4.2 seconds, latency is 0.1, so 2*0.1, the size 8192 divided by the speed 2048: 2*0.1+8192/2048 = 4.2
 		self.assertTrue(self.c4.latencies[0] > 4 and self.c4.latencies[0] < 5)
 
-		bigvideo = {'idVideo': 1, 'duration': 60, 'size': 16384, 'bitrate': 8192/60, 'title': 'Big big Video', 'description': 'Biiiig bitrate'}
+		bigvideo = {'idVideo': 2, 'duration': 60, 'size': 16384, 'bitrate': 8192/60, 'title': 'Big big Video', 'description': 'Biiiig bitrate'}
 		self.s2.addVideo(video=bigvideo)
-		self.c4.requestMedia(1, 2)
+		self.c4.requestMedia(2, 2)
 
 		time.sleep(9)
-
+		# should take two times as much as it is two times as big
 		self.assertTrue(self.c4.latencies[1] > 8 and self.c4.latencies[1] < 9)
 
 class TestForwardProxy(unittest.TestCase):

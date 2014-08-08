@@ -4,6 +4,7 @@
 # units:
 # data in kb
 # time in seconds
+# bandwidth in kb/s
 
 from pprint import pprint
 import sys
@@ -38,13 +39,16 @@ class Peer:
 
     # size in mb
     # protected
-    def _packData(self, data, size = None, type = 'other', responseTo = None):
+    def _packData(self, data, size = None, type = 'other', responseTo = None, chunkId = None, chunkSize = None):
         #TODO replace the plSize
         plSize = size or len(data)/10
         realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type, 'packetId': self.numPacket}
         self.numPacket += 1
         if responseTo != None:
             realData['responseTo'] = responseTo
+        if chunkId != None:
+            realData['chunkId'] = chunkId
+            realData['chunkSize'] = chunkSize
         return realData
 
     def request(self, data, size = None, type = 'other'):
@@ -60,14 +64,15 @@ class Peer:
 
 #unidirectional connection
 class Connection:
-    # bandwidth in mb/s
+    # bandwidth in kb/s
     # latency in seconds
-    def __init__(self, peer=None, latency=2, bandwidth=1024):
+    def __init__(self, peer=None, latency=2, bandwidth=1024, maxChunk=512):
         self.latency = latency
         # waiting queue for the packets, append() and popleft() are threadafe
         #self.queue = deque()
         self.bandwidth = bandwidth
         self.peer = peer
+        self.maxChunk = maxChunk
         self.q = queue.Queue()
         self.t = threading.Thread(target=self.worker)
         self.t.daemon = True
@@ -88,6 +93,10 @@ class Connection:
         self.bandwidth = bandwidth
         return self
 
+    def setMaxChunk(self, maxChunk=512):
+        self.maxChunk = maxChunk
+        return self
+
     # infinite loop running in a thread to simulate the time needed to send the data.
     # the thread gets the data to send from the Queue q, where the items have two fields:
     # - delay, how long the task is supposed to take
@@ -97,30 +106,63 @@ class Connection:
         while True:
             item = self.q.get()
             data = item['data']
-            time.sleep(item['delay'])
+            mode = item['mode']
+            if mode is 'normal':
+                # we set the chunkId before it is updated in the item (in the if)
+                data['chunkId'] = item['chunkId']
+
+                # if the packet is too big, we split it
+                if item['size'] > self.maxChunk:
+                    data['chunkSize'] = self.maxChunk
+                    item['chunkId'] += 1
+                    item['size'] -= self.maxChunk
+                    # and put the rest on the top of the queue, to have a round robin
+                    self.q.put(item)
+                # if not, we set the chunkSize to remaining size and don't split it
+                else:
+                    data['chunkSize'] = item['size']
+                    data['lastChunk'] = True
+
+            elif mode is 'forwardchunk':
+                if 'chunkSize' not in data:
+                    print("We got a problem with this chunk forwarding!")
+                    data['chunkSize'] = item['size']
+
+            elif mode is 'donotchunk':
+                data['chunkId'] = 0
+                data['chunkSize'] = item['size']
+                data['lastChunk'] = True
+
+            delay = self.latency+data['chunkSize']/self.bandwidth
+
+            time.sleep(delay)
             self.peer.receivedCallback(data)
             self.q.task_done()
 
-    def send(self, data):
+    def send(self, data, mode='normal'):
         if self.peer:
             # calculating the time the packet would need to be transmitted over this connection
             delay = self.latency+data['plSize']/self.bandwidth
             #DEBUG
             #print("Delay: "+str(delay)+" for data: "+str(data))
             # inserting the data to send in the Queue with the time it's supposed to take
-            self.q.put({'delay': delay, 'data':data})
+             #self.q.put({'delay': delay, 'data':data})
+            # modes: normal, donotchunk, forwardchunk
+            self.q.put({'size': data['plSize'], 'chunkId': 0, 'data': data, 'mode': mode})
         else:
             #error, no peer
             print("error, no peer connected")
 
 @TwoMethodsTimer("requestMedia", "startPlayback")
 class Client(Peer):
+    # bufferSize in Kb
     bufferSize = 1024
-    playBuffer = 0
+    mediaAskedFor = {}
 
-    def requestMedia(self, mediaId, serverId = 1):
-        payload = {'idServer': serverId, 'idVideo': mediaId}
+    def requestMedia(self, idMedia, serverId = 1):
+        payload = {'idServer': serverId, 'idVideo': idMedia}
         self.request(payload, None, 'videoRequest')
+        self.mediaAskedFor[idMedia] = {'received': 0, 'size': None}
 
     def setBufferSize(self, bufferSize):
         self.bufferSize = bufferSize
@@ -128,14 +170,44 @@ class Client(Peer):
     def receivedCallback(self, data):
         self.receivedData = data
         if data['plType'] is 'video':
-            self.playBuffer += data['plSize']
-            if self.playBuffer > self.bufferSize:
-                self.startPlayback()
+
+            idMedia = data['payload']['idVideo']
+
+            # wow, we never asked for that media!
+            if idMedia not in self.mediaAskedFor:
+                print("These are not the droids you're looking for")
+                return
+
+            # if this is the first chunk we receive
+            if not self.mediaAskedFor[idMedia]['size']:
+                self.mediaAskedFor[idMedia]['size'] = data['plSize']
+
+            oldBuffer = self.mediaAskedFor[idMedia]['received']
+            # we update how much we received for this media
+            self.mediaAskedFor[idMedia]['received'] += data['chunkSize']
+             #print("Downloaded "+str(self.mediaAskedFor[idMedia]['received'])+" out of "+str(self.mediaAskedFor[idMedia]['size'])+" for "+str(idMedia))
+            playBuffer = self.mediaAskedFor[idMedia]['received']
+            # if the download is complete
+            if playBuffer >= self.mediaAskedFor[idMedia]['size']:
+                self.downloadComplete(idMedia)
+
+            # start playing the video if the buffer was previously not filled enough and is now ok
+            if playBuffer >= self.bufferSize and oldBuffer < playBuffer:
+                self.startPlayback(idMedia)
         else:
             Peer.receivedCallback(self, data)
 
-    def startPlayback(self):
-        print("Video is playing")
+    # to signal that we can start the playback
+    def startPlayback(self, idMedia=None, data=None):
+        if not idMedia:
+            idMedia = data['payload']['videoId']
+        print("Video "+str(idMedia)+" is playing")
+
+    # to signal that the download is complete
+    def downloadComplete(self, idMedia=None, data=None):
+        if not idMedia:
+            idMedia = data['payload']['videoId']
+        print("Download of media "+str(idMedia)+" completed.")
 
 # bare bone proxy, doing almost nothing
 class BaseProxy(Peer):
@@ -180,20 +252,21 @@ class ForwardProxy(AbstractProxy):
 
     # private
     def __packForward(self, data):
-        forwardData = self._packData(data['payload'], data['plSize'], data['plType'])
+        forwardData = self._packData(data['payload'], data['plSize'], data['plType'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
         self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
         return forwardData;
 
     def _processVideoRequest(self, data):
         forwardData = self.__packForward(data)
-        self.connection[data['payload']['idServer']].send(forwardData)
+        self.connection[data['payload']['idServer']].send(forwardData, 'forwardchunk')
 
     def _processResponseTo(self, data):
         responseTo = data['responseTo']
         reqInfo = self.activeRequests[responseTo]
-        newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'])
-        self.connection[reqInfo['origSender']].send(newData)
-        del self.activeRequests[responseTo]
+        newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
+        self.connection[reqInfo['origSender']].send(newData, 'forwardchunk')
+        if 'lastChunk' in data:
+            del self.activeRequests[responseTo]
 
     def _processOther(self, data):
         realData = self._packData("There you go: "+ data['payload'], responseTo=data['packetId'])
@@ -209,7 +282,7 @@ class UnlimitedProxy(AbstractProxy):
 
     # private
     def __packForward(self, data):
-        forwardData = self._packData(data['payload'], data['plSize'], data['plType'])
+        forwardData = self._packData(data['payload'], data['plSize'], data['plType'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
         self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
         return forwardData;
 
@@ -221,7 +294,7 @@ class UnlimitedProxy(AbstractProxy):
             self.connection[data['sender']].send(newData)
         else:
             forwardData = self.__packForward(data)
-            self.connection[data['payload']['idServer']].send(forwardData)
+            self.connection[data['payload']['idServer']].send(forwardData, 'forwardchunk')
 
     def _processResponseTo(self, data):
         responseTo = data['responseTo']
@@ -232,9 +305,10 @@ class UnlimitedProxy(AbstractProxy):
         if pl['idVideo'] not in self.__cachedb:
             self.__cachedb[pl['idVideo']]=pl
 
-        newData = self._packData(pl, data['plSize'], data['plType'], reqInfo['origPackId'])
-        self.connection[reqInfo['origSender']].send(newData)
-        del self.activeRequests[responseTo]
+        newData = self._packData(pl, data['plSize'], data['plType'], reqInfo['origPackId'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
+        self.connection[reqInfo['origSender']].send(newData, 'forwardchunk')
+        if 'lastChunk' in data:
+            del self.activeRequests[responseTo]
 
     def _processOther(self, data):
         realData = self._packData("There you go: "+ data['payload'], 2048, responseTo=data['packetId'])
