@@ -21,8 +21,8 @@ def PacketTimer(func1, func2):                        # On @ decorator
 
 
             def startTimer(self):
-                # keeping track of the request with the numPacket, which will be used to send the request
-                self.startTime[self.wrapped.numPacket] = time.time()
+                # keeping track of the request with the _num_packet, which will be used to send the request
+                self.startTime[self.wrapped._num_packet] = time.time()
 
             def stopTimer(self, packetid):
                 if len(self.startTime) > 0:
@@ -31,7 +31,7 @@ def PacketTimer(func1, func2):                        # On @ decorator
                     #self.startTime.remove(packetid)
                     del self.startTime[packetid]
                     self.latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.get_id()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
                     
             def newFunc1(self, *args, **kargs):
                 self.startTimer()
@@ -75,7 +75,7 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                 if self.startTime != 0:
                     totalTime = time.time() - self.startTime
                     self.latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.getID()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.get_id()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
                     self.startTime = 0
 
             def newFunc1(self, *args, **kargs):

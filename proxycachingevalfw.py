@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 #coding=utf-8
+"""A framework to easily test new proxy caching algorithms.
 
+.. moduleauthor:: Pierre Ducher
+
+units:
+
+- data in kb
+- time in seconds
+- bandwidth in kb/s
+"""
 # units:
 # data in kb
 # time in seconds
@@ -18,83 +27,125 @@ from abc import ABCMeta
 from metrics import *
 
 class Peer:
+    """Common base for classes that are communicating
+
+    The Peer class gives a base for communication, all communicating classes
+    should inherit from it.
+
+    IDs conventions:
+
+    - 0 for the proxy
+    - from 1 to 1000 for VideoServers
+    - from 1001 to infinity for the clients
+
+    Args:
+        id (int): an ID identifying the Peer on the 'network', should be unique
+        name (str): a easy to read name, optional
+    """
     # IDs conventions:
     # 0 for the proxy
     # from 1 to 1000 for VideoServers
     # from 1001 to infinity for the clients
-    id = 0
-    name = ""
-    connection = None
-    numPacket = 0
 
-    receivedData = None
-
-    def __init__(self, id, name=None):
+    def __init__(self, id_, name=None):
         self.name = name or ""
-        self.id = id
+        self._id = id_
+        self.connection = None
+        self._num_packet = 0
+        self._received_data = None
 
-    def connectTo(self, peer):
+    def connect_to(self, peer):
         self.connection = Connection(peer)
         return self.connection
 
     # size in mb
     # protected
-    def _packData(self, data, size = None, type = 'other', responseTo = None, chunkId = None, chunkSize = None):
+    def _pack_data(self, data, size=None, type_='other', response_to=None, 
+                   chunk_id=None, chunk_size=None):
         #TODO replace the plSize
-        plSize = size or len(data)/10
-        realData = {'sender':self.id, 'payload':data, 'plSize': plSize, 'plType': type, 'packetId': self.numPacket}
-        self.numPacket += 1
-        if responseTo != None:
-            realData['responseTo'] = responseTo
-        if chunkId != None:
-            realData['chunkId'] = chunkId
-            realData['chunkSize'] = chunkSize
-        return realData
+        pl_size = size or len(data)/10
+        real_data = {'sender':self._id, 'payload':data, 'plSize': pl_size, 
+                     'plType': type_, 'packetId': self._num_packet}
+        self._num_packet += 1
+        if response_to != None:
+            real_data['responseTo'] = response_to
+        if chunk_id != None:
+            real_data['chunkId'] = chunk_id
+            real_data['chunkSize'] = chunk_size
+        return real_data
 
-    def request(self, data, size = None, type = 'other'):
-        realData = self._packData(data, size, type)
-        self.connection.send(realData)
+    def request(self, data, size=None, type_='other'):
+        real_data = self._pack_data(data, size, type_)
+        self.connection.send(real_data)
 
-    def receivedCallback(self, data):
-        self.receivedData = data
-        print(self.name+" received data: "+str(data['payload'])+" from: "+str(data['sender']))
+    def received_callback(self, data):
+        """Meant to be called to give data to the Peer
 
-    def getID(self):
-        return self.id
+        The :class:`Connection` uses it when data is available for a Peer.
+
+        Args:
+            data (dict): The data to give to the peer.
+        Returns:
+            Nothing
+        """
+        self._received_data = data
+        print(self.name+" received data: "+str(data['payload'])+
+              " from: "+str(data['sender']))
+
+    def get_id(self):
+        return self._id
+
+    @property
+    def received_data(self):
+        return self._received_data
 
 #unidirectional connection
 class Connection:
-    # bandwidth in kb/s
-    # latency in seconds
-    def __init__(self, peer=None, latency=2, bandwidth=1024, maxChunk=512):
+    """
+
+    Args:
+            peer (:class:`Peer`): the Peer we want to send data to
+            latency (int): the latency in seconds
+            bandwidth (int): the speed of the connection, in kb/s
+            max_chunk (int): the maximum size in which a packet will be devided
+                if it is too large, in kb
+    """
+    def __init__(self, peer=None, latency=2, bandwidth=1024, max_chunk=512):
         self.latency = latency
         # waiting queue for the packets, append() and popleft() are threadafe
         #self.queue = deque()
         self.bandwidth = bandwidth
         self.peer = peer
-        self.maxChunk = maxChunk
+        self.max_chunk = max_chunk
         self.q = queue.Queue()
         self.t = threading.Thread(target=self.worker)
         self.t.daemon = True
         self.t.start()
 
     def connect(self, peer):
+        """ Connect to antoher :class:`Peer`
+        This is a one-way communication,
+        so this Connection will only be able to send data to this Peer
+
+        Args:
+            peer (:class:`Peer`): Who we want to send data to
+        """
         if not self.peer:
             self.peer = peer
         else:
             #error
             print("error, already one peer")
 
-    def setLag(self, latency=2):
+    def set_lag(self, latency=2):
         self.latency = latency
         return self
 
-    def setBandwidth(self, bandwidth=1024):
+    def set_bandwidth(self, bandwidth=1024):
         self.bandwidth = bandwidth
         return self
 
-    def setMaxChunk(self, maxChunk=512):
-        self.maxChunk = maxChunk
+    def set_max_chunk(self, max_chunk=512):
+        self.max_chunk = max_chunk
         return self
 
     # infinite loop running in a thread to simulate the time needed to send the data.
@@ -112,10 +163,10 @@ class Connection:
                 data['chunkId'] = item['chunkId']
 
                 # if the packet is too big, we split it
-                if item['size'] > self.maxChunk:
-                    data['chunkSize'] = self.maxChunk
+                if item['size'] > self.max_chunk:
+                    data['chunkSize'] = self.max_chunk
                     item['chunkId'] += 1
-                    item['size'] -= self.maxChunk
+                    item['size'] -= self.max_chunk
                     # and put the rest on the top of the queue, to have a round robin
                     self.q.put(item)
                 # if not, we set the chunkSize to remaining size and don't split it
@@ -136,7 +187,7 @@ class Connection:
             delay = self.latency+data['chunkSize']/self.bandwidth
 
             time.sleep(delay)
-            self.peer.receivedCallback(data)
+            self.peer.received_callback(data)
             self.q.task_done()
 
     def send(self, data, mode='normal'):
@@ -153,191 +204,281 @@ class Connection:
             #error, no peer
             print("error, no peer connected")
 
-@TwoMethodsTimer("requestMedia", "startPlayback")
+@TwoMethodsTimer("request_media", "start_playback")
 class Client(Peer):
-    # bufferSize in Kb
-    bufferSize = 1024
-    mediaAskedFor = {}
+    """Represents a client, which downloads videos through the Proxy.
+    """
 
-    def requestMedia(self, idMedia, serverId = 1):
-        payload = {'idServer': serverId, 'idVideo': idMedia}
+    def __init__(self, *args, **kargs):
+        Peer.__init__(self, *args, **kargs)
+        self.buffer_size = 1024
+        """bufferSize in Kb"""
+        self.media_asked_for = {}
+
+    def request_media(self, id_media, server_id=1):
+        """
+        A really useful function.
+
+        Returns None
+        """
+        payload = {'idServer': server_id, 'idVideo': id_media}
         self.request(payload, None, 'videoRequest')
-        self.mediaAskedFor[idMedia] = {'received': 0, 'size': None}
+        self.media_asked_for[id_media] = {'received': 0, 'size': None}
 
-    def setBufferSize(self, bufferSize):
-        self.bufferSize = bufferSize
+    def set_buffer_size(self, buffer_size):
+        self.buffer_size = buffer_size
 
-    def receivedCallback(self, data):
-        self.receivedData = data
+    def received_callback(self, data):
+        self._received_data = data
         if data['plType'] is 'video':
 
-            idMedia = data['payload']['idVideo']
+            id_media = data['payload']['idVideo']
 
             # wow, we never asked for that media!
-            if idMedia not in self.mediaAskedFor:
+            if id_media not in self.media_asked_for:
                 print("These are not the droids you're looking for")
                 return
 
             # if this is the first chunk we receive
-            if not self.mediaAskedFor[idMedia]['size']:
-                self.mediaAskedFor[idMedia]['size'] = data['plSize']
+            if not self.media_asked_for[id_media]['size']:
+                self.media_asked_for[id_media]['size'] = data['plSize']
 
-            oldBuffer = self.mediaAskedFor[idMedia]['received']
+            oldBuffer = self.media_asked_for[id_media]['received']
             # we update how much we received for this media
-            self.mediaAskedFor[idMedia]['received'] += data['chunkSize']
-             #print("Downloaded "+str(self.mediaAskedFor[idMedia]['received'])+" out of "+str(self.mediaAskedFor[idMedia]['size'])+" for "+str(idMedia))
-            playBuffer = self.mediaAskedFor[idMedia]['received']
+            self.media_asked_for[id_media]['received'] += data['chunkSize']
+             #print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
+            play_buffer = self.media_asked_for[id_media]['received']
             # if the download is complete
-            if playBuffer >= self.mediaAskedFor[idMedia]['size']:
-                self.downloadComplete(idMedia)
+            if play_buffer >= self.media_asked_for[id_media]['size']:
+                self.download_complete(id_media)
 
             # start playing the video if the buffer was previously not filled enough and is now ok
-            if playBuffer >= self.bufferSize and oldBuffer < playBuffer:
-                self.startPlayback(idMedia)
+            if play_buffer >= self.buffer_size and oldBuffer < play_buffer:
+                self.start_playback(id_media)
         else:
-            Peer.receivedCallback(self, data)
+            Peer.received_callback(self, data)
 
     # to signal that we can start the playback
-    def startPlayback(self, idMedia=None, data=None):
-        if not idMedia:
-            idMedia = data['payload']['videoId']
-        print("Video "+str(idMedia)+" is playing")
+    def start_playback(self, id_media=None, data=None):
+        """ To signal that we can start the playback
+
+        Should only be called inernaly, is here so that a timer decorator
+        can now when this is called and stop the timer.
+        """
+        if not id_media:
+            id_media = data['payload']['videoId']
+        print("Video "+str(id_media)+" is playing")
 
     # to signal that the download is complete
-    def downloadComplete(self, idMedia=None, data=None):
-        if not idMedia:
-            idMedia = data['payload']['videoId']
-        print("Download of media "+str(idMedia)+" completed.")
+    def download_complete(self, id_media=None, data=None):
+        if not id_media:
+            id_media = data['payload']['videoId']
+        print("Download of media "+str(id_media)+" completed.")
 
 # bare bone proxy, doing almost nothing
 class BaseProxy(Peer):
-    connection = dict()
-    '''def __init__(self, id, name=None):
-        Peer.__init__(self, id, name)
-        connection = dict()'''
+    """Mother of all Proxies
 
-    def connectTo(self, peer):
-        id = peer.getID()
-        self.connection[id] = Connection(peer)
-        return self.connection[id]
+    The base only includes a way to be connected to multiple peers at the same time.
+    No disconnection yet, though.
+    """
+    def __init__(self, *args, **kargs):
+        Peer.__init__(self, *args, **kargs)
+        self.connection = dict()
 
-# base for more sophisticated proxy working with the requests defined in the specs
+    def connect_to(self, peer):
+        id_ = peer.get_id()
+        self.connection[id_] = Connection(peer)
+        return self.connection[id_]
+
 class AbstractProxy(BaseProxy, metaclass=ABCMeta):
+    """ base for more sophisticated proxy working with the requests defined in the specs 
+
+    Splits the received_callback into 3 different possibilities: 
+
+    - processVideoRequest for a video request from a client and maybe forward it to a Video Server
+    - processResponseTo for the responses the Proxy receives, usually the video he asked
+    - processOther for anything else
+    """
 
     @abc.abstractmethod
-    def _processVideoRequest(self, data):
+    def _process_video_request(self, data):
         """ process a video request, usually look into the cache to get it or get it from the video server """
-        return
+        pass
 
     @abc.abstractmethod
-    def _processResponseTo(self, data):
+    def _process_response_to(self, data):
         """ process a response to a previous request, usually a request for a video """
-        return
+        pass
 
     @abc.abstractmethod
-    def _processOther(self, data):
+    def _process_other(self, data):
         """ process the unknown, can be anything else """
-        return
+        pass
 
-    def receivedCallback(self, data):
+    def received_callback(self, data):
+        """
+        This will filter through the different type of packets
+        and cal the appropriate function.
+        """
         if 'responseTo' in data:
-            self._processResponseTo(data)
+            self._process_response_to(data)
         elif data['plType'] is 'videoRequest':
-            self._processVideoRequest(data)
+            self._process_video_request(data)
         elif data['plType'] is 'other':
-            self._processOther(data)
+            self._process_other(data)
 
 class ForwardProxy(AbstractProxy):
-    activeRequests = dict()
+    """ A proxy forwarding everything and caching nothing """
+
+    def __init__(self, *args, **kargs):
+        AbstractProxy.__init__(self, *args, **kargs)
+        self.active_requests = dict()
 
     # private
-    def __packForward(self, data):
-        forwardData = self._packData(data['payload'], data['plSize'], data['plType'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
-        self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
-        return forwardData;
+    def __pack_forward(self, data):
+        forward_data = self._pack_data(data['payload'], 
+                                       data['plSize'], 
+                                       data['plType'], 
+                                       chunk_id=data['chunkId'], 
+                                       chunk_size=data['chunkSize'])
+        self.active_requests[forward_data['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
+        return forward_data
 
-    def _processVideoRequest(self, data):
-        forwardData = self.__packForward(data)
-        self.connection[data['payload']['idServer']].send(forwardData, 'forwardchunk')
+    def _process_video_request(self, data):
+        forward_data = self.__pack_forward(data)
+        self.connection[data['payload']['idServer']].send(forward_data, 'forwardchunk')
 
-    def _processResponseTo(self, data):
-        responseTo = data['responseTo']
-        reqInfo = self.activeRequests[responseTo]
-        newData = self._packData(data['payload'], data['plSize'], data['plType'], reqInfo['origPackId'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
-        self.connection[reqInfo['origSender']].send(newData, 'forwardchunk')
+    def _process_response_to(self, data):
+        response_to = data['responseTo']
+        req_info = self.active_requests[response_to]
+        new_data = self._pack_data(data['payload'], 
+                                   data['plSize'], 
+                                   data['plType'], 
+                                   req_info['origPackId'], 
+                                   chunk_id=data['chunkId'], 
+                                   chunk_size=data['chunkSize'])
+        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
         if 'lastChunk' in data:
-            del self.activeRequests[responseTo]
+            del self.active_requests[response_to]
 
-    def _processOther(self, data):
-        realData = self._packData("There you go: "+ data['payload'], responseTo=data['packetId'])
-        self.connection[data['sender']].send(realData)
+    def _process_other(self, data):
+        real_data = self._pack_data("There you go: "+ data['payload'], response_to=data['packetId'])
+        self.connection[data['sender']].send(real_data)
 
 class FIFOProxy(AbstractProxy):
-    __cachedb = dict()
-    __cacheSize = 3072
+
+    def __init__(self, *args, **kargs):
+        AbstractProxy.__init__(self, *args, **kargs)
+        self.active_requests = dict()
+        self.__cachedb = dict()
+        self.__cache_size = 3072
 
 class UnlimitedProxy(AbstractProxy):
-    __cachedb = dict()
-    activeRequests = dict()
+    """ Proxy caching everything, without a size limit. 
+    Once an object is accessed, it is stored in the cache 
+    """
+
+    def __init__(self, *args, **kargs):
+        AbstractProxy.__init__(self, *args, **kargs)
+        self.active_requests = dict()
+        self.__cachedb = dict()
 
     # private
-    def __packForward(self, data):
-        forwardData = self._packData(data['payload'], data['plSize'], data['plType'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
-        self.activeRequests[forwardData['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
-        return forwardData;
+    def __pack_forward(self, data):
+        forward_data = self._pack_data(data['payload'], 
+                                       data['plSize'], 
+                                       data['plType'], 
+                                       chunk_id=data['chunkId'], 
+                                       chunk_size=data['chunkSize'])
+        self.active_requests[forward_data['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
+        return forward_data
 
-    def _processVideoRequest(self, data):
-        pl = data['payload']
-        if pl['idVideo'] in self.__cachedb:
-            video = self.__cachedb[pl['idVideo']]
-            newData = self._packData(video, video['size'], 'video', data['packetId'])
-            self.connection[data['sender']].send(newData)
+    def _process_video_request(self, data):
+        pld = data['payload']
+        if pld['idVideo'] in self.__cachedb:
+            video = self.__cachedb[pld['idVideo']]
+            new_data = self._pack_data(video, video['size'], 
+                                       'video', data['packetId'])
+            self.connection[data['sender']].send(new_data)
         else:
-            forwardData = self.__packForward(data)
-            self.connection[data['payload']['idServer']].send(forwardData, 'forwardchunk')
+            forward_data = self.__pack_forward(data)
+            self.connection[data['payload']['idServer']].send(forward_data, 
+                                                              'forwardchunk')
 
-    def _processResponseTo(self, data):
-        responseTo = data['responseTo']
-        reqInfo = self.activeRequests[responseTo]
+    def _process_response_to(self, data):
+        response_to = data['responseTo']
+        req_info = self.active_requests[response_to]
 
-        pl = data['payload']
+        pld = data['payload']
         # cache the video, unconditionally
-        if pl['idVideo'] not in self.__cachedb:
-            self.__cachedb[pl['idVideo']]=pl
+        if pld['idVideo'] not in self.__cachedb:
+            self.__cachedb[pld['idVideo']] = pld
 
-        newData = self._packData(pl, data['plSize'], data['plType'], reqInfo['origPackId'], chunkId=data['chunkId'], chunkSize=data['chunkSize'])
-        self.connection[reqInfo['origSender']].send(newData, 'forwardchunk')
+        new_data = self._pack_data(pld, data['plSize'], data['plType'], 
+                                   req_info['origPackId'], 
+                                   chunk_id=data['chunkId'], 
+                                   chunk_size=data['chunkSize'])
+        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
         if 'lastChunk' in data:
-            del self.activeRequests[responseTo]
+            del self.active_requests[response_to]
 
-    def _processOther(self, data):
-        realData = self._packData("There you go: "+ data['payload'], 2048, responseTo=data['packetId'])
-        self.connection[data['sender']].send(realData)
+    def _process_other(self, data):
+        real_data = self._pack_data("There you go: "+ data['payload'], 2048, 
+                                    response_to=data['packetId'])
+        self.connection[data['sender']].send(real_data)
 
 class VideoServer(Peer):
+    """ Simulation of the video server, can store 'videos' 
+    and give them through the connection 
+    """
 
-    # private
-    __db = dict()
-    __curId = 0
+    def __init__(self, *args, **kargs):
+        Peer.__init__(self, *args, **kargs)
+        self.__db = dict()
+        self.__cur_id = 0
 
-    def receivedCallback(self, data):
+    def received_callback(self, data):
         if data['plType'] is 'videoRequest':
             req = data['payload']
             #response = {'idVideo': req['idVideo'], 'duration': 60, 'size': 2048, 'bitrate': 2048/60}
-            #respData = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
+            #resp_data = {'sender': self.id, 'payload': response, 'plSize': response['size'], 'plType': 'video'}
             response = self.__db[req['idVideo']]
-            respData = self._packData(response, response['size'], 'video', data['packetId'])
-            self.connection.send(respData)
+            resp_data = self._pack_data(response, response['size'], 
+                                        'video', data['packetId'])
+            self.connection.send(resp_data)
         req = data['payload']
 
-    def addVideo(self, duration=0, size=0, bitrate=0, title='', description='', id=None, video=None):
+    def add_video(self, duration=0, size=0, bitrate=0, title='', 
+                  description='', id_=None, video=None):
+        """ Add a video to the video server.
+
+        Args:
+            duration (int): The duration of the video in seconds
+            size (int): Size of the video in kilobits
+            bitrate (int): Bitrate of the video in kb/s
+            title (str): Title of the video
+            description (str): Description of the video
+            id (int): optional, if not specified, the id will be the previous+1
+            video (dict): if specified, ignores everything else.
+            Dictionnary entry like this:
+                {'idVideo': 1, 'duration': 13, 'size': 1245, 'bitrate': 96, 
+                 'title': "Video", 'description': "Best video"}
+        Returns:
+            Nothing
+        """
         if video:
             self.__db[video['idVideo']] = video
         else:
-            if id:
-                newId = id
+            if id_:
+                new_id = id_
             else:
-                newId = __curId
-                __curId += 1
+                new_id = self.__cur_id
+                self.__cur_id += 1
 
-            self.__db[newId] = {'idVideo': newId, 'duration': duration, 'size': size, 'bitrate': bitrate, 'title': title, 'description': description}
+            self.__db[new_id] = {'idVideo': new_id, 
+                                 'duration': duration, 
+                                 'size': size, 
+                                 'bitrate': bitrate, 
+                                 'title': title, 
+                                 'description': description}
