@@ -58,8 +58,6 @@ class Peer:
         self.connection = Connection(peer)
         return self.connection
 
-    # size in mb
-    # protected
     def _pack_data(self, data, size=None, type_='other', response_to=None, 
                    chunk_id=None, chunk_size=None):
         #TODO replace the plSize
@@ -99,9 +97,8 @@ class Peer:
     def received_data(self):
         return self._received_data
 
-#unidirectional connection
 class Connection:
-    """
+    """Unidirectional connection
 
     Args:
             peer (:class:`Peer`): the Peer we want to send data to
@@ -118,9 +115,9 @@ class Connection:
         self.peer = peer
         self.max_chunk = max_chunk
         self.q = queue.Queue()
-        self.t = threading.Thread(target=self.worker)
-        self.t.daemon = True
-        self.t.start()
+        self.thread = threading.Thread(target=self.worker)
+        self.thread.daemon = True
+        self.thread.start()
 
     def connect(self, peer):
         """ Connect to antoher :class:`Peer`
@@ -258,7 +255,6 @@ class Client(Peer):
         else:
             Peer.received_callback(self, data)
 
-    # to signal that we can start the playback
     def start_playback(self, id_media=None, data=None):
         """ To signal that we can start the playback
 
@@ -269,15 +265,13 @@ class Client(Peer):
             id_media = data['payload']['videoId']
         print("Video "+str(id_media)+" is playing")
 
-    # to signal that the download is complete
     def download_complete(self, id_media=None, data=None):
         if not id_media:
             id_media = data['payload']['videoId']
         print("Download of media "+str(id_media)+" completed.")
 
-# bare bone proxy, doing almost nothing
 class BaseProxy(Peer):
-    """Mother of all Proxies
+    """Bare bone proxy, doing almost nothing
 
     The base only includes a way to be connected to multiple peers at the same time.
     No disconnection yet, though.
@@ -335,35 +329,45 @@ class ForwardProxy(AbstractProxy):
         AbstractProxy.__init__(self, *args, **kargs)
         self.active_requests = dict()
 
-    # private
-    def __pack_forward(self, data):
+    def _pack_forward_request(self, data):
         forward_data = self._pack_data(data['payload'], 
                                        data['plSize'], 
-                                       data['plType'], 
-                                       chunk_id=data['chunkId'], 
-                                       chunk_size=data['chunkSize'])
-        self.active_requests[forward_data['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
+                                       data['plType'])
+        forward_data['chunkId'] = data['chunkId']
+        forward_data['chunkSize'] = data['chunkSize']
+        # store the forwarded packetId in the active request to keep track of it
+        self.active_requests[forward_data['packetId']] = \
+                {'origSender': data['sender'], 'origPackId': data['packetId']}
+
+        return forward_data
+
+    def _pack_forward_response(self, data):
+        response_to = data['responseTo']
+        req_info = self.active_requests[response_to]
+        forward_data = self._pack_data(data['payload'], 
+                                   data['plSize'], 
+                                   data['plType'], 
+                                   req_info['origPackId'])
+        forward_data['chunkId'] = data['chunkId']
+        forward_data['chunkSize'] = data['chunkSize']
+        if 'lastChunk' in data:
+            del self.active_requests[response_to]
+
         return forward_data
 
     def _process_video_request(self, data):
-        forward_data = self.__pack_forward(data)
+        forward_data = self._pack_forward_request(data)
         self.connection[data['payload']['idServer']].send(forward_data, 'forwardchunk')
 
     def _process_response_to(self, data):
         response_to = data['responseTo']
         req_info = self.active_requests[response_to]
-        new_data = self._pack_data(data['payload'], 
-                                   data['plSize'], 
-                                   data['plType'], 
-                                   req_info['origPackId'], 
-                                   chunk_id=data['chunkId'], 
-                                   chunk_size=data['chunkSize'])
+        new_data = self._pack_forward_response(data)
         self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
-        if 'lastChunk' in data:
-            del self.active_requests[response_to]
 
     def _process_other(self, data):
-        real_data = self._pack_data("There you go: "+ data['payload'], response_to=data['packetId'])
+        real_data = self._pack_data("There you go: "+ data['payload'], 
+                                    response_to=data['packetId'])
         self.connection[data['sender']].send(real_data)
 
 class FIFOProxy(AbstractProxy):
@@ -374,7 +378,7 @@ class FIFOProxy(AbstractProxy):
         self.__cachedb = dict()
         self.__cache_size = 3072
 
-class UnlimitedProxy(AbstractProxy):
+class UnlimitedProxy(ForwardProxy):
     """ Proxy caching everything, without a size limit. 
     Once an object is accessed, it is stored in the cache 
     """
@@ -384,16 +388,6 @@ class UnlimitedProxy(AbstractProxy):
         self.active_requests = dict()
         self.__cachedb = dict()
 
-    # private
-    def __pack_forward(self, data):
-        forward_data = self._pack_data(data['payload'], 
-                                       data['plSize'], 
-                                       data['plType'], 
-                                       chunk_id=data['chunkId'], 
-                                       chunk_size=data['chunkSize'])
-        self.active_requests[forward_data['packetId']] = {'origSender': data['sender'], 'origPackId': data['packetId']}
-        return forward_data
-
     def _process_video_request(self, data):
         pld = data['payload']
         if pld['idVideo'] in self.__cachedb:
@@ -402,7 +396,7 @@ class UnlimitedProxy(AbstractProxy):
                                        'video', data['packetId'])
             self.connection[data['sender']].send(new_data)
         else:
-            forward_data = self.__pack_forward(data)
+            forward_data = self._pack_forward_request(data)
             self.connection[data['payload']['idServer']].send(forward_data, 
                                                               'forwardchunk')
 
@@ -415,18 +409,9 @@ class UnlimitedProxy(AbstractProxy):
         if pld['idVideo'] not in self.__cachedb:
             self.__cachedb[pld['idVideo']] = pld
 
-        new_data = self._pack_data(pld, data['plSize'], data['plType'], 
-                                   req_info['origPackId'], 
-                                   chunk_id=data['chunkId'], 
-                                   chunk_size=data['chunkSize'])
-        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
-        if 'lastChunk' in data:
-            del self.active_requests[response_to]
+        new_data = self._pack_forward_response(data)
 
-    def _process_other(self, data):
-        real_data = self._pack_data("There you go: "+ data['payload'], 2048, 
-                                    response_to=data['packetId'])
-        self.connection[data['sender']].send(real_data)
+        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
 
 class VideoServer(Peer):
     """ Simulation of the video server, can store 'videos' 
