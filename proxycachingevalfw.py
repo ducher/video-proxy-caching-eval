@@ -21,6 +21,7 @@ import getopt
 import time
 import queue
 import threading
+from collections import deque
 # for abstract classes
 import abc
 from abc import ABCMeta
@@ -370,13 +371,65 @@ class ForwardProxy(AbstractProxy):
                                     response_to=data['packetId'])
         self.connection[data['sender']].send(real_data)
 
-class FIFOProxy(AbstractProxy):
-
+class FIFOProxy(ForwardProxy):
+    """ cache video in a limited size cache, 
+    remove the oldest video(s) when full
+    """
     def __init__(self, *args, **kargs):
         AbstractProxy.__init__(self, *args, **kargs)
         self.active_requests = dict()
         self.__cachedb = dict()
-        self.__cache_size = 3072
+        self.__cache_fifo = deque()
+        self.__cache_size = 0
+        self.__cache_max_size = 3072
+
+    def _process_video_request(self, data):
+        pld = data['payload']
+        if pld['idVideo'] in self.__cachedb:
+            video = self.__cachedb[pld['idVideo']]
+            new_data = self._pack_data(video, video['size'], 
+                                       'video', data['packetId'])
+            self.connection[data['sender']].send(new_data)
+        else:
+            forward_data = self._pack_forward_request(data)
+            self.connection[data['payload']['idServer']].send(forward_data, 
+                                                              'forwardchunk')
+
+    def _process_response_to(self, data):
+        response_to = data['responseTo']
+        req_info = self.active_requests[response_to]
+
+        pld = data['payload']
+        # cache the video, if it's smaller than the cache size
+        if pld['idVideo'] not in self.__cachedb and\
+           pld['size'] < self.__cache_max_size:
+            self._make_space_for_new_video(pld)
+            self._insert_new_video(pld)
+
+        new_data = self._pack_forward_response(data)
+
+        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
+
+    def _make_space_for_new_video(self, video):
+        """ Removes videos until we have enough space """
+        while self._cache_full(video['size']):
+            id_evict = self.id_evict()
+            self.__cache_size -= self.__cachedb[id_evict]['size']
+            del self.__cachedb[id_evict]
+
+    def _cache_full(self, newSize=0):
+        """ check if the cache is full, or will be if we add the new size """
+        return (self.__cache_size+newSize) >= self.__cache_max_size
+
+    def _id_to_evict(self):
+        """ removes and returns the id of the video to evict """
+        return self.__cache_fifo.popleft()
+
+    def _insert_new_video(self, video):
+        """ inserts a new video, updates the cache size and fifo queue """
+        self.__cachedb[video['idVideo']] = video
+        self.__cache_size += video['size']
+        self.__cache_fifo.append(video['idVideo'])
 
 class UnlimitedProxy(ForwardProxy):
     """ Proxy caching everything, without a size limit. 

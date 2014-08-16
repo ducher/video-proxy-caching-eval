@@ -203,5 +203,42 @@ class TestUnlimitedProxy(unittest.TestCase):
         self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
 
 
+class TestFIFOProxy(unittest.TestCase):
+
+    def setUp(self):
+        self.c1 = Client(1001, "c1")
+        self.c2 = Client(1002, "c2")
+        self.p = FIFOProxy(0, "Proxy")
+
+        #good bandwidth between the clients and proxy
+        self.c1.connect_to(self.p).set_lag(0.1).set_bandwidth(12000)
+        self.p.connect_to(self.c1).set_lag(0.1).set_bandwidth(12000)
+
+        self.c2.connect_to(self.p).set_lag(0.1).set_bandwidth(12000)
+        self.p.connect_to(self.c2).set_lag(0.1).set_bandwidth(12000)
+
+        self.s1 = VideoServer(1, "s1")
+
+        #but congested link between proxy and video server
+        self.s1.connect_to(self.p).set_lag(0.01).set_bandwidth(1024)
+        self.p.connect_to(self.s1).set_lag(0.01).set_bandwidth(1024)
+
+        self.video1 = {'idVideo': 1337, 'duration': 60, 'size': 2048, 'bitrate': 2048/60, 'title': 'Video', 'description': 'A video'}
+        self.bigvideo = {'idVideo': 1, 'duration': 60, 'size': 8192, 'bitrate': 8192/60, 'title': 'Big Video', 'description': 'Big bitrate'}
+
+    def test_caching_benefits(self):
+        self.s1.add_video(video=self.video1)
+
+        self.c1.request_media(1337, 1)
+
+        time.sleep(3)
+
+        self.c1.request_media(1337, 1)
+
+        time.sleep(1)
+
+        self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
+
+
 if __name__ == '__main__':
     unittest.main()
