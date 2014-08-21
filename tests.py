@@ -6,7 +6,11 @@ import time
 
 @PacketTimer('request', 'received_callback')
 class TimedPeer(Peer):
-    block = None
+    def __method(self):
+        print("method")
+
+    def method(self):
+        self.__method()
 
 
 class TestRequestResponse(unittest.TestCase):
@@ -65,6 +69,9 @@ class TestTiming(unittest.TestCase):
 
         self.assertTrue(self.c1.latencies[0] > 2 and self.c1.latencies[0] < 3)
         self.assertTrue(self.c1.latencies[1] > 3 and self.c1.latencies[0] < 4)
+
+    def test_wrapper(self):
+        self.c1.method()
 
 class TestVideoServer(unittest.TestCase):
 
@@ -238,6 +245,21 @@ class TestFIFOProxy(unittest.TestCase):
         time.sleep(1)
 
         self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
+
+    def test_cache_stats(self):
+        self.s1.add_video(video=self.video1)
+
+        self.c1.request_media(1337, 1)
+
+        time.sleep(3)
+
+        self.c1.request_media(1337, 1)
+
+        time.sleep(1)
+
+        stats = self.p.get_hit_stats()
+        self.assertEqual(stats['byte_hit_ratio'], 0.5)
+        self.assertEqual(stats['byte_cache'], self.video1['size']/8)
 
 
 if __name__ == '__main__':

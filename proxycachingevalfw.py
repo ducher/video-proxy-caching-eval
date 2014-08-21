@@ -371,7 +371,7 @@ class ForwardProxy(AbstractProxy):
                                     response_to=data['packetId'])
         self.connection[data['sender']].send(real_data)
 
-class FIFOProxy(ForwardProxy):
+class FIFOProxy(ForwardProxy, ProxyHitCounter):
     """ cache video in a limited size cache, 
     remove the oldest video(s) when full
     """
@@ -382,11 +382,15 @@ class FIFOProxy(ForwardProxy):
         self.__cache_fifo = deque()
         self.__cache_size = 0
         self.__cache_max_size = 3072
+        ProxyHitCounter.__init__(self)
 
     def _process_video_request(self, data):
         pld = data['payload']
         if pld['idVideo'] in self.__cachedb:
             video = self.__cachedb[pld['idVideo']]
+            # for the metric
+            self._from_cache(size_kb=video['size'])
+
             new_data = self._pack_data(video, video['size'], 
                                        'video', data['packetId'])
             self.connection[data['sender']].send(new_data)
@@ -403,6 +407,9 @@ class FIFOProxy(ForwardProxy):
         # cache the video, if it's smaller than the cache size
         if pld['idVideo'] not in self.__cachedb and\
            pld['size'] < self.__cache_max_size:
+            # for the metric
+            self._from_server(size_kb=pld['size'])
+
             self._make_space_for_new_video(pld)
             self._insert_new_video(pld)
 

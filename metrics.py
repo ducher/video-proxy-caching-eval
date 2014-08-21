@@ -95,3 +95,42 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                 return getattr(self.__wrapped, attrname)    # Delegate to wrapped obj
         return Wrapper
     return ClassBuilder
+
+
+class ProxyHitCounter:
+    
+    def __init__(self):
+        self._cache_hits = 0
+        self._nb_served = 0
+        self._byte_served = 0
+        self._byte_cache = 0
+
+    def _from_cache(self, size_kB=None, size_kb=None):
+        """ kilo bytes - bits """
+        size = 0
+        if size_kB:
+            size = size_kB
+        elif size_kb:
+            size = size_kb/8
+        self._byte_cache += size
+        self._byte_served += size
+
+        self._cache_hits += 1
+        self._nb_served +=1
+
+    def _from_server(self, size_kB=None, size_kb=None):
+        size = 0
+        if size_kB:
+            size = size_kB
+        elif size_kb:
+            size = size_kb/8
+        self._byte_served += size
+        self._nb_served += 1
+
+    def get_hit_stats(self):
+        return {'cache_hits':self._cache_hits,
+                'nb_served':self._nb_served,
+                'hit_ratio':self._cache_hits/self._nb_served,
+                'byte_cache':self._byte_cache,
+                'byte_served':self._byte_served,
+                'byte_hit_ratio':self._byte_cache/self._byte_served}
