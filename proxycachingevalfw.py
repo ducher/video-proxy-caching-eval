@@ -15,7 +15,7 @@ units:
 # time in seconds
 # bandwidth in kb/s
 
-from pprint import pprint
+#from pprint import pprint
 import sys
 import getopt
 import time
