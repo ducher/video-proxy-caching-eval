@@ -8,43 +8,45 @@ def PacketTimer(func1, func2):                        # On @ decorator
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
                 # stores the begining timestamps when timing
-                self.startTime = dict()
+                self.__startTime = dict()
                 # to start all the latencies, for statistics purpose
-                self.latencies = []
-                self.wrapped = aClass(*args, **kargs)     # Use enclosing scope name
+                self.__latencies = []
+                self.__wrapped = aClass(*args, **kargs)     # Use enclosing scope name
 
-                self.oldFunc1 = self.wrapped.__getattribute__(func1)
-                self.oldFunc2 = self.wrapped.__getattribute__(func2)
+                self.__oldFunc1 = self.__wrapped.__getattribute__(func1)
+                self.__oldFunc2 = self.__wrapped.__getattribute__(func2)
 
-                self.wrapped.__setattr__(func1, self.newFunc1)
-                self.wrapped.__setattr__(func2, self.newFunc2)
+                self.__wrapped.__setattr__(func1, self.__newFunc1)
+                self.__wrapped.__setattr__(func2, self.__newFunc2)
 
 
-            def startTimer(self):
+            def __startTimer(self):
                 # keeping track of the request with the _num_packet, which will be used to send the request
-                self.startTime[self.wrapped._num_packet] = time.time()
+                self.__startTime[self.__wrapped._num_packet] = time.time()
 
-            def stopTimer(self, packetid):
-                if len(self.startTime) > 0:
-                    #packetid = self.wrapped.receivedData['responseTo']
-                    totalTime = time.time() - self.startTime[packetid]
-                    #self.startTime.remove(packetid)
-                    del self.startTime[packetid]
-                    self.latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.get_id()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
+            def __stopTimer(self, packetid):
+                if len(self.__startTime) > 0:
+                    #packetid = self.__wrapped.receivedData['responseTo']
+                    totalTime = time.time() - self.__startTime[packetid]
+                    #self.__startTime.remove(packetid)
+                    del self.__startTime[packetid]
+                    self.__latencies.append(totalTime)
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.__wrapped.get_id()) + " Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
                     
-            def newFunc1(self, *args, **kargs):
-                self.startTimer()
-                return self.oldFunc1( *args, **kargs)
+            def __newFunc1(self, *args, **kargs):
+                self.__startTimer()
+                return self.__oldFunc1( *args, **kargs)
 
-            def newFunc2(self, *args, **kargs):
+            def __newFunc2(self, *args, **kargs):
                 # the function needs the packetId it is answering to stop the right timer
-                self.stopTimer(args[0]['responseTo'])
-                return self.oldFunc2( *args, **kargs)
+                self.__stopTimer(args[0]['responseTo'])
+                return self.__oldFunc2( *args, **kargs)
 
             def __getattr__(self, attrname):
+                if(attrname is 'latencies'):
+                    return self.__latencies
                 # to keep the original methods working
-                return getattr(self.wrapped, attrname)    # Delegate to wrapped obj
+                return getattr(self.__wrapped, attrname)    # Delegate to wrapped obj
         return Wrapper
     return ClassBuilder
 
@@ -55,39 +57,41 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
                 # stores the begining timestamp when timing
-                self.startTime = 0  
+                self.__startTime = 0  
                 # to start all the latencies, for statistics purpose
-                self.latencies = []
-                self.wrapped = aClass(*args, **kargs)     # Use enclosing scope name
+                self.__latencies = []
+                self.__wrapped = aClass(*args, **kargs)     # Use enclosing scope name
 
-                self.oldFunc1 = self.wrapped.__getattribute__(func1)
-                self.oldFunc2 = self.wrapped.__getattribute__(func2)
+                self.__oldFunc1 = self.__wrapped.__getattribute__(func1)
+                self.__oldFunc2 = self.__wrapped.__getattribute__(func2)
 
-                self.wrapped.__setattr__(func1, self.newFunc1)
-                self.wrapped.__setattr__(func2, self.newFunc2)
+                self.__wrapped.__setattr__(func1, self.__newFunc1)
+                self.__wrapped.__setattr__(func2, self.__newFunc2)
 
 
-            def startTimer(self):
+            def __startTimer(self):
                 print("Start")
-                self.startTime = time.time()
+                self.__startTime = time.time()
 
-            def stopTimer(self):
-                if self.startTime != 0:
-                    totalTime = time.time() - self.startTime
-                    self.latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.wrapped.get_id()) + " Average: "+str(sum(self.latencies)/float(len(self.latencies))))
-                    self.startTime = 0
+            def __stopTimer(self):
+                if self.__startTime != 0:
+                    totalTime = time.time() - self.__startTime
+                    self.__latencies.append(totalTime)
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.__wrapped.get_id()) + " Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
+                    self.__startTime = 0
 
-            def newFunc1(self, *args, **kargs):
-                self.startTimer()
-                return self.oldFunc1( *args, **kargs)
+            def __newFunc1(self, *args, **kargs):
+                self.__startTimer()
+                return self.__oldFunc1( *args, **kargs)
 
-            def newFunc2(self, *args, **kargs):
-                self.stopTimer()
-                return self.oldFunc2( *args, **kargs)
+            def __newFunc2(self, *args, **kargs):
+                self.__stopTimer()
+                return self.__oldFunc2( *args, **kargs)
 
             def __getattr__(self, attrname):
+                if(attrname is 'latencies'):
+                    return self.__latencies
                 # to keep the original methods working
-                return getattr(self.wrapped, attrname)    # Delegate to wrapped obj
+                return getattr(self.__wrapped, attrname)    # Delegate to wrapped obj
         return Wrapper
     return ClassBuilder
