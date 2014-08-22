@@ -420,7 +420,7 @@ class FIFOProxy(ForwardProxy, ProxyHitCounter):
     def _make_space_for_new_video(self, video):
         """ Removes videos until we have enough space """
         while self._cache_full(video['size']):
-            id_evict = self.id_evict()
+            id_evict = self._id_to_evict()
             self.__cache_size -= self.__cachedb[id_evict]['size']
             del self.__cachedb[id_evict]
 

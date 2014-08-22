@@ -1,6 +1,8 @@
 
 import time
 
+import matplotlib.pyplot as plt
+
 # To time how long it takes to receive a response to a request
 # keeps track of the packetId, so that mangled calls can be distinguished
 def PacketTimer(func1, func2):                        # On @ decorator
@@ -134,3 +136,18 @@ class ProxyHitCounter:
                 'byte_cache':self._byte_cache,
                 'byte_served':self._byte_served,
                 'byte_hit_ratio':self._byte_cache/self._byte_served}
+
+
+class PlotStats:
+
+    def plot_latencies(self, latencies):
+        print("plot")
+        print(latencies)
+        plt.plot(latencies, 'b-o')
+        plt.show()
+
+    def hist_latencies(self, latencies):
+        print("hist")
+        print(latencies)
+        plt.hist(latencies,bins=3)
+        plt.show()
