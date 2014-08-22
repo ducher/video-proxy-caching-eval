@@ -1,6 +1,7 @@
 # test module for the framework
 
 from proxycachingevalfw import *
+import simu
 import unittest
 import time
 
@@ -11,6 +12,16 @@ class TimedPeer(Peer):
 
     def method(self):
         self.__method()
+
+
+class TestSimuHelpers(unittest.TestCase):
+
+    def test_sleep(self):
+        start = time.time()
+        speed = config.speed
+        simu.sleep(5)
+        end = (time.time() - start) * speed
+        self.assertAlmostEqual(end, 5, 1)
 
 
 class TestRequestResponse(unittest.TestCase):
@@ -31,7 +42,7 @@ class TestRequestResponse(unittest.TestCase):
         self.c1.request("lol")
         self.c3.request("pouet")
 
-        time.sleep(1)
+        simu.sleep(1)
 
         self.assertEqual(self.c1.received_data['payload'], 'There you go: lol')
         self.assertEqual(self.c3.received_data['payload'], 'There you go: pouet')
@@ -54,7 +65,7 @@ class TestTiming(unittest.TestCase):
         self.c1.request("lol")
         self.c3.request("pouet")
         
-        time.sleep(4)
+        simu.sleep(4)
 
         self.assertTrue(self.c1.latencies[0] > 2 and self.c1.latencies[0] < 3)
 
@@ -65,7 +76,7 @@ class TestTiming(unittest.TestCase):
         self.c1.request("lol")
         self.c1.request("pouet")
 
-        time.sleep(5)
+        simu.sleep(5)
 
         self.assertTrue(self.c1.latencies[0] > 2 and self.c1.latencies[0] < 3)
         self.assertTrue(self.c1.latencies[1] > 3 and self.c1.latencies[0] < 4)
@@ -90,17 +101,17 @@ class TestVideoServer(unittest.TestCase):
         self.s2.add_video(video=self.video)
         self.c4.request_media(1337, 2)
 
-        time.sleep(2)
+        simu.sleep(2)
 
         self.assertEqual(self.c4.received_data['payload'], self.video)
 
-        time.sleep(10)
+        simu.sleep(10)
 
     def test_add_video_access(self):
         self.s2.add_video(60, 2048, 2048/60, 'Video', 'A video', 1337)
         self.c4.request_media(1337, 2)
 
-        time.sleep(2)
+        simu.sleep(2)
 
         self.assertEqual(self.c4.received_data['payload'], self.video)
 
@@ -109,7 +120,7 @@ class TestVideoServer(unittest.TestCase):
         self.s2.add_video(video=bigvideo)
         self.c4.request_media(1, 2)
 
-        time.sleep(5)
+        simu.sleep(5)
         # should take 4.2 seconds, latency is 0.1, so 2*0.1, the size 8192 divided by the speed 2048: 2*0.1+8192/2048 = 4.2
         self.assertTrue(self.c4.latencies[0] > 4 and self.c4.latencies[0] < 5)
 
@@ -117,7 +128,7 @@ class TestVideoServer(unittest.TestCase):
         self.s2.add_video(video=bigvideo)
         self.c4.request_media(2, 2)
 
-        time.sleep(9)
+        simu.sleep(9)
         # should take two times as much as it is two times as big
         self.assertTrue(self.c4.latencies[1] > 8 and self.c4.latencies[1] < 9)
 
@@ -151,7 +162,7 @@ class TestForwardProxy(unittest.TestCase):
 
         self.c1.request_media(9001, 1)
 
-        time.sleep(2)
+        simu.sleep(2)
 
         self.assertEqual(self.c1.received_data['payload'], self.video2)
 
@@ -161,14 +172,14 @@ class TestForwardProxy(unittest.TestCase):
 
         self.c1.request_media(9001, 1)
 
-        time.sleep(2)
+        simu.sleep(2)
 
         self.assertEqual(self.c1.received_data['payload'], self.video2)
 
         self.c2.request_media(9001, 1)
         self.c3.request_media(1337, 1)
 
-        time.sleep(2)
+        simu.sleep(2)
 
         self.assertEqual(self.c2.received_data['payload'], self.video2)
         self.assertEqual(self.c3.received_data['payload'], self.video1)
@@ -201,11 +212,11 @@ class TestUnlimitedProxy(unittest.TestCase):
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(3)
+        simu.sleep(3)
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(1)
+        simu.sleep(1)
 
         self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
 
@@ -238,11 +249,11 @@ class TestFIFOProxy(unittest.TestCase):
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(3)
+        simu.sleep(3)
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(1)
+        simu.sleep(1)
 
         self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
 
@@ -255,28 +266,28 @@ class TestFIFOProxy(unittest.TestCase):
 
     #     self.c1.request_media(1337, 1)
 
-    #     time.sleep(3)
+    #     simu.sleep(3)
 
     #     self.c1.request_media(1337, 1)
     #     self.c2.request_media(9001, 1)
 
-    #     time.sleep(3)
+    #     simu.sleep(3)
 
     #     self.c1.request_media(9001, 1)
     #     self.c2.request_media(1337, 1)
 
-    #     time.sleep(3)
+    #     simu.sleep(3)
 
     #     self.c1.request_media(1337, 1)
-    #     time.sleep(3)
+    #     simu.sleep(3)
 
     #     self.c1.request_media(1337, 1)
-    #     time.sleep(3)
+    #     simu.sleep(3)
 
     #     self.c1.request_media(1, 1)
-    #     time.sleep(5)
+    #     simu.sleep(5)
     #     self.c2.request_media(1, 1)
-    #     time.sleep(5)
+    #     simu.sleep(5)
 
     #     print(self.c1.latencies)
 
@@ -289,11 +300,11 @@ class TestFIFOProxy(unittest.TestCase):
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(3)
+        simu.sleep(3)
 
         self.c1.request_media(1337, 1)
 
-        time.sleep(1)
+        simu.sleep(1)
 
         stats = self.p.get_hit_stats()
         self.assertEqual(stats['byte_hit_ratio'], 0.5)

@@ -1,7 +1,8 @@
 
 import time
-
 import matplotlib.pyplot as plt
+
+import simu
 
 # To time how long it takes to receive a response to a request
 # keeps track of the packetId, so that mangled calls can be distinguished
@@ -30,6 +31,7 @@ def PacketTimer(func1, func2):                        # On @ decorator
                 if len(self.__startTime) > 0:
                     #packetid = self.__wrapped.receivedData['responseTo']
                     totalTime = time.time() - self.__startTime[packetid]
+                    totalTime = simu.real_time(totalTime)
                     #self.__startTime.remove(packetid)
                     del self.__startTime[packetid]
                     self.__latencies.append(totalTime)
@@ -78,6 +80,7 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
             def __stopTimer(self):
                 if self.__startTime != 0:
                     totalTime = time.time() - self.__startTime
+                    totalTime = simu.real_time(totalTime)
                     self.__latencies.append(totalTime)
                     print("Took "+str(totalTime)+" seconds for "+ str(self.__wrapped.get_id()) + " Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
                     self.__startTime = 0

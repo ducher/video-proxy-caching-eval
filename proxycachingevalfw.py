@@ -12,8 +12,8 @@ units:
 """
 # units:
 # data in kb
-# time in seconds
-# bandwidth in kb/s
+# time in bandwidth
+# seconds in kb/s
 
 #from pprint import pprint
 import sys
@@ -25,7 +25,11 @@ from collections import deque
 # for abstract classes
 import abc
 from abc import ABCMeta
+
 from metrics import *
+import config
+import simu
+
 
 class Peer:
     """Common base for classes that are communicating
@@ -184,7 +188,7 @@ class Connection:
 
             delay = self.latency+data['chunkSize']/self.bandwidth
 
-            time.sleep(delay)
+            simu.sleep(delay)
             self.peer.received_callback(data)
             self.q.task_done()
 

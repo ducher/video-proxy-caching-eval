@@ -5,6 +5,7 @@ import sys
 import sched, time
 
 from proxycachingevalfw import *
+import simu
 
 class Orchestrator:
     """ Orchestrating the simulation """
@@ -15,7 +16,7 @@ class Orchestrator:
         self._clients = dict()
         self._proxy = None
         self._servers = dict()
-        self._scheduler = sched.scheduler(time.time, time.sleep)
+        self._scheduler = sched.scheduler(simu.timesched, simu.sleepsched)
 
 
     def load_trace(self, file_path='fake_trace.dat'):
@@ -70,7 +71,7 @@ class Orchestrator:
         pass
 
     def set_up(self):
-        trace_path = 'fake_trace_fast.dat'
+        trace_path = 'fake_trace.dat'
         self.load_trace(trace_path)
         self.load_video_db()
 
@@ -117,14 +118,12 @@ class Orchestrator:
     def _connect_clients(self, lag=0.1, bandwidth_down=4000, bandwidth_up=600):
         print("Connecting the clients...")
         for client in self._clients.values():
-            print(client)
             client.connect_to(self._proxy).set_lag(lag).set_bandwidth(bandwidth_up)
             self._proxy.connect_to(client).set_lag(lag).set_bandwidth(bandwidth_down)
 
     def _connect_servers(self, lag=0.1, bandwidth_down=100000, bandwidth_up=100000):
         print("Connecting the servers...")
         for server in self._servers.values():
-            print(server)
             server.connect_to(self._proxy).set_lag(lag).set_bandwidth(bandwidth_up)
             self._proxy.connect_to(server).set_lag(lag).set_bandwidth(bandwidth_down)
 
