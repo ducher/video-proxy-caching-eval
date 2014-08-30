@@ -247,6 +247,8 @@ class TestFIFOProxy(unittest.TestCase):
     def test_caching_benefits(self):
         self.s1.add_video(video=self.video1)
 
+        self.c1.set_buffer_size(512)
+
         self.c1.request_media(1337, 1)
 
         simu.sleep(3)

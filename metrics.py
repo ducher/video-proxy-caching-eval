@@ -47,6 +47,7 @@ def PacketTimer(func1, func2):                        # On @ decorator
                 return self.__oldFunc2( *args, **kargs)
 
             def __getattr__(self, attrname):
+                # necessary to get the latencies
                 if(attrname is 'latencies'):
                     return self.__latencies
                 # to keep the original methods working
@@ -86,10 +87,12 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
                     self.__startTime = 0
 
             def __newFunc1(self, *args, **kargs):
+                #print("__newFunc1")
                 self.__startTimer()
                 return self.__oldFunc1( *args, **kargs)
 
             def __newFunc2(self, *args, **kargs):
+                #print("__newFunc2")
                 self.__stopTimer()
                 return self.__oldFunc2( *args, **kargs)
 

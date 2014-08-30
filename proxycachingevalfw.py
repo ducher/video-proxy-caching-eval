@@ -66,7 +66,7 @@ class Peer:
     def _pack_data(self, data, size=None, type_='other', response_to=None, 
                    chunk_id=None, chunk_size=None):
         #TODO replace the plSize
-        pl_size = size or len(data)/10
+        pl_size = size or len(data)*8/1024
         real_data = {'sender':self._id, 'payload':data, 'plSize': pl_size, 
                      'plType': type_, 'packetId': self._num_packet}
         self._num_packet += 1
@@ -112,7 +112,7 @@ class Connection:
             max_chunk (int): the maximum size in which a packet will be devided
                 if it is too large, in kb
     """
-    def __init__(self, peer=None, latency=2, bandwidth=1024, max_chunk=512):
+    def __init__(self, peer=None, latency=2, bandwidth=1024, max_chunk=8):
         self.latency = latency
         # waiting queue for the packets, append() and popleft() are threadafe
         #self.queue = deque()
@@ -146,7 +146,7 @@ class Connection:
         self.bandwidth = bandwidth
         return self
 
-    def set_max_chunk(self, max_chunk=512):
+    def set_max_chunk(self, max_chunk=8):
         self.max_chunk = max_chunk
         return self
 
@@ -186,7 +186,12 @@ class Connection:
                 data['chunkSize'] = item['size']
                 data['lastChunk'] = True
 
-            delay = self.latency+data['chunkSize']/self.bandwidth
+            delay = data['chunkSize']/self.bandwidth
+            if data['chunkId'] is 0:
+                """ only add the latency on the first chunk as the latency
+                    is only noticable one time, then all chunks are sent
+                    consecutively  """
+                delay =+ self.latency
 
             simu.sleep(delay)
             self.peer.received_callback(data)
@@ -248,7 +253,7 @@ class Client(Peer):
             oldBuffer = self.media_asked_for[id_media]['received']
             # we update how much we received for this media
             self.media_asked_for[id_media]['received'] += data['chunkSize']
-             #print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
+            #print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
             play_buffer = self.media_asked_for[id_media]['received']
             # if the download is complete
             if play_buffer >= self.media_asked_for[id_media]['size']:
