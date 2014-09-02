@@ -1,6 +1,7 @@
 # test module for the framework
 
 from proxycachingevalfw import *
+from metrics import *
 import simu
 import unittest
 import time
@@ -13,6 +14,13 @@ class TimedPeer(Peer):
     def method(self):
         self.__method()
 
+@TwoMethodsTimerAndCounter("request_media", "start_playback", "_video_stopped")
+class StopClient(Client):
+    pass
+
+@TwoMethodsTimer("request_media", "start_playback")
+class LatenciesClient(Client):
+    pass
 
 class TestSimuHelpers(unittest.TestCase):
 
@@ -46,6 +54,118 @@ class TestRequestResponse(unittest.TestCase):
 
         self.assertEqual(self.c1.received_data['payload'], 'There you go: lol')
         self.assertEqual(self.c3.received_data['payload'], 'There you go: pouet')
+
+class TestClient(unittest.TestCase):
+
+    def setUp(self):
+        # testing direct access to a video server
+        self.s2 = VideoServer(2, "s2")
+        self.c4 = StopClient(1004, "c4")
+
+        # we set the chunk to a big size so that we can determine accurately the download time
+        self.c4.connect_to(self.s2).set_lag(0.1).set_bandwidth(2048)
+        self.s2.connect_to(self.c4).set_lag(0.1).set_bandwidth(2048)
+
+
+        self.c1 = StopClient(1001, "c1")
+        self.c2 = StopClient(1002, "c2")
+        self.p = ForwardProxy(0, "Proxy")
+        self.s1 = VideoServer(1, "s1")
+
+        self.c1.connect_to(self.p).set_lag(0.1).set_bandwidth(2048)
+        self.p.connect_to(self.c1).set_lag(0.1).set_bandwidth(2048)
+
+        self.c2.connect_to(self.p).set_lag(0.1).set_bandwidth(2048)
+        self.p.connect_to(self.c2).set_lag(0.1).set_bandwidth(2048)
+
+        self.s1.connect_to(self.p).set_lag(0.01).set_bandwidth(1024)
+        self.p.connect_to(self.s1).set_lag(0.01).set_bandwidth(1024)
+
+    def test_buffer_big_bitrate(self):
+        bigvideo = {'idVideo': 1, 'duration': 100, 'size': 409600, 'bitrate': 4096, 'title': 'Big Video', 'description': 'Big bitrate'}
+        self.s2.add_video(video=bigvideo)
+        self.c4.request_media(1, 2)
+
+        self.c4.start_video_consumer()
+
+        simu.sleep(2)
+
+        #self.assertEqual(self.c4.received_data['payload'], self.video)
+
+        simu.sleep(2)
+        simu.sleep(2)
+        simu.sleep(2)
+        #print(str(self.c4.counter))
+        self.assertGreater(self.c4.counter, 0)
+
+    def test_wait_vs_nowait(self):
+        bigvideo = {'idVideo': 1, 'duration': 10, 'size': 40960, 'bitrate': 4096, 'title': 'Big Video', 'description': 'Big bitrate'}
+        self.s2.add_video(video=bigvideo)
+
+        self.c4.set_buffer_size(6144)
+        self.c4.start_video_consumer()
+
+        self.c4.set_play_wait_buffer(False)
+        self.c4.request_media(1, 2)
+        simu.sleep(10)
+        print(str(self.c4.counter))
+        counter1 = self.c4.counter
+
+        self.c4.set_play_wait_buffer(True)
+        self.c4.request_media(1, 2)
+        simu.sleep(10)
+        print(str(self.c4.counter))
+        counter2 = self.c4.counter - counter1
+
+        self.assertGreater(counter1, counter2)
+
+
+
+    def test_two_videos_buffer_nowait(self):
+        video1 = {'idVideo': 1, 'duration': 10, 'size': 7680, 'bitrate': 768, 'title': 'Video', 'description': 'A video'}
+        video2 = {'idVideo': 2, 'duration': 5, 'size': 7500, 'bitrate': 1500, 'title': 'Video', 'description': 'A video'}
+
+        self.s1.add_video(video=video1)
+        self.s1.add_video(video=video2)
+        self.c2.set_play_wait_buffer(False)
+        self.c1.set_play_wait_buffer(False)
+
+        self.c2.start_video_consumer()
+        self.c1.start_video_consumer()
+
+        self.c1.request_media(1, 1)
+        self.assertEqual(self.c1.counter, 0)
+        simu.sleep(2)
+        self.c2.request_media(2, 1)
+        simu.sleep(10)
+        #print(str(self.c2.counter))
+        #print(str(self.c1.counter))
+        self.assertGreater(self.c2.counter, 0)
+        self.assertGreater(self.c1.counter, 0)
+
+    def test_two_videos_buffer(self):
+        video1 = {'idVideo': 1, 'duration': 10, 'size': 7680, 'bitrate': 768, 'title': 'Video', 'description': 'A video'}
+        video2 = {'idVideo': 2, 'duration': 5, 'size': 7500, 'bitrate': 1500, 'title': 'Video', 'description': 'A video'}
+
+        self.s1.add_video(video=video1)
+        self.s1.add_video(video=video2)
+        self.c2.set_play_wait_buffer(True)
+        self.c1.set_play_wait_buffer(True)
+
+        self.c2.start_video_consumer()
+        self.c1.start_video_consumer()
+
+        self.c1.request_media(1, 1)
+        self.assertEqual(self.c1.counter, 0)
+        simu.sleep(2)
+        self.c2.request_media(2, 1)
+        simu.sleep(10)
+        #print(str(self.c2.counter))
+        #print(str(self.c1.counter))
+        self.assertGreater(self.c2.counter, 0)
+        
+
+        pass
 
 class TestTiming(unittest.TestCase):
 
@@ -89,7 +209,7 @@ class TestVideoServer(unittest.TestCase):
     def setUp(self):
         # testing direct access to a video server
         self.s2 = VideoServer(2, "s2")
-        self.c4 = Client(1004, "c4")
+        self.c4 = LatenciesClient(1004, "c4")
 
         # we set the chunk to a big size so that we can determine accurately the download time
         self.c4.connect_to(self.s2).set_lag(0.1).set_bandwidth(2048).set_max_chunk(32000)
@@ -118,9 +238,11 @@ class TestVideoServer(unittest.TestCase):
     def test_transfer_speed(self):
         bigvideo = {'idVideo': 1, 'duration': 60, 'size': 8192, 'bitrate': 8192/60, 'title': 'Big Video', 'description': 'Big bitrate'}
         self.s2.add_video(video=bigvideo)
+        self.c4.set_buffer_size(8192)
         self.c4.request_media(1, 2)
 
         simu.sleep(5)
+        print("Latency "+str(self.c4.latencies[0]))
         # should take 4.2 seconds, latency is 0.1, so 2*0.1, the size 8192 divided by the speed 2048: 2*0.1+8192/2048 = 4.2
         self.assertTrue(self.c4.latencies[0] > 4 and self.c4.latencies[0] < 5)
 
@@ -187,8 +309,8 @@ class TestForwardProxy(unittest.TestCase):
 class TestUnlimitedProxy(unittest.TestCase):
 
     def setUp(self):
-        self.c1 = Client(1001, "c1")
-        self.c2 = Client(1002, "c2")
+        self.c1 = LatenciesClient(1001, "c1")
+        self.c2 = LatenciesClient(1002, "c2")
         self.p = UnlimitedProxy(0, "Proxy")
 
         #good bandwidth between the clients and proxy
@@ -224,8 +346,8 @@ class TestUnlimitedProxy(unittest.TestCase):
 class TestFIFOProxy(unittest.TestCase):
 
     def setUp(self):
-        self.c1 = Client(1001, "c1")
-        self.c2 = Client(1002, "c2")
+        self.c1 = LatenciesClient(1001, "c1")
+        self.c2 = LatenciesClient(1002, "c2")
         self.p = FIFOProxy(0, "Proxy")
 
         #good bandwidth between the clients and proxy

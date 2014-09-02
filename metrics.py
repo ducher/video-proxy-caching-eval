@@ -57,6 +57,67 @@ def PacketTimer(func1, func2):                        # On @ decorator
 
 # Time how long between the last call of func1 and first call of func2.
 # Once func2 has been called, can time another interval.
+# Counts how many times func3 has been called
+def TwoMethodsTimerAndCounter(func1, func2, func3):                        # On @ decorator
+    def ClassBuilder(aClass):
+        class Wrapper:
+            def __init__(self, *args, **kargs):           # On instance creation
+                # stores the begining timestamp when timing
+                # stores the begining timestamps when timing
+                self.__startTime = 0 
+                # to start all the latencies, for statistics purpose
+                self.__latencies = []
+                self.__counter = 0
+                self.__wrapped = aClass(*args, **kargs)     # Use enclosing scope name
+
+                self.__oldFunc1 = self.__wrapped.__getattribute__(func1)
+                self.__oldFunc2 = self.__wrapped.__getattribute__(func2)
+                self.__oldFunc3 = self.__wrapped.__getattribute__(func3)
+
+                self.__wrapped.__setattr__(func1, self.__newFunc1)
+                self.__wrapped.__setattr__(func2, self.__newFunc2)
+                self.__wrapped.__setattr__(func3, self.__newFunc3)
+
+            def __startTimer(self):
+                print("Start")
+                self.__startTime = time.time()
+
+            def __stopTimer(self):
+                if self.__startTime != 0:
+                    totalTime = time.time() - self.__startTime
+                    totalTime = simu.real_time(totalTime)
+                    self.__latencies.append(totalTime)
+                    print("Took "+str(totalTime)+" seconds for "+ str(self.__wrapped.get_id()) + " Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
+                    self.__startTime = 0
+                    
+            def __newFunc1(self, *args, **kargs):
+                #print("__newFunc1")
+                self.__startTimer()
+                return self.__oldFunc1( *args, **kargs)
+
+            def __newFunc2(self, *args, **kargs):
+                #print("__newFunc2")
+                self.__stopTimer()
+                return self.__oldFunc2( *args, **kargs)
+
+            def __newFunc3(self, *args, **kargs):
+                #print("__newFunc1")
+                self.__counter += 1
+                return self.__oldFunc3( *args, **kargs)
+
+            def __getattr__(self, attrname):
+                if(attrname is 'counter'):
+                    return self.__counter
+                # necessary to get the latencies
+                elif(attrname is 'latencies'):
+                    return self.__latencies
+                # to keep the original methods working
+                return getattr(self.__wrapped, attrname)    # Delegate to wrapped obj
+        return Wrapper
+    return ClassBuilder
+
+# Time how long between the last call of func1 and first call of func2.
+# Once func2 has been called, can time another interval.
 def TwoMethodsTimer(func1, func2):                        # On @ decorator
     def ClassBuilder(aClass):
         class Wrapper:
@@ -104,7 +165,6 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
         return Wrapper
     return ClassBuilder
 
-
 class ProxyHitCounter:
     
     def __init__(self):
@@ -134,6 +194,9 @@ class ProxyHitCounter:
             size = size_kb/8
         self._byte_served += size
         self._nb_served += 1
+
+    def get_stats(self):
+        return self.get_hit_stats()
 
     def get_hit_stats(self):
         return {'cache_hits':self._cache_hits,

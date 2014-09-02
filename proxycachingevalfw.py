@@ -187,11 +187,14 @@ class Connection:
                 data['lastChunk'] = True
 
             delay = data['chunkSize']/self.bandwidth
+
             if data['chunkId'] is 0:
                 """ only add the latency on the first chunk as the latency
                     is only noticable one time, then all chunks are sent
                     consecutively  """
-                delay =+ self.latency
+                delay += self.latency
+
+            #print("Delay: "+str(delay)+", ChunkSize: "+str(data['chunkSize']))
 
             simu.sleep(delay)
             self.peer.received_callback(data)
@@ -211,7 +214,7 @@ class Connection:
             #error, no peer
             print("error, no peer connected")
 
-@TwoMethodsTimer("request_media", "start_playback")
+#@TwoMethodsTimer("request_media", "start_playback")
 class Client(Peer):
     """Represents a client, which downloads videos through the Proxy.
     """
@@ -221,6 +224,58 @@ class Client(Peer):
         self.buffer_size = 1024
         """bufferSize in Kb"""
         self.media_asked_for = {}
+        self.play_thread = threading.Thread(target=self.play_videos)
+        self.play_thread.daemon = True
+        
+        # settings for the player thread
+        self.play_auto = True
+        self.play_wait_buffer = True
+
+        
+
+    def play_videos(self):
+        """ Automatically consumes videos when the buffer has been filled initially
+            Runs in an independant thread.
+            Runs once every simulated second.
+        """
+        while True:
+            for id_media in self.media_asked_for:
+                # if the state of the video is "buffering"
+                if self.play_wait_buffer and self.media_asked_for[id_media]['state'] is 'buffer':
+                    # if the buffer is filled enough, we update the state to "playing"
+                    if self.media_asked_for[id_media]['buffer'] > self.buffer_size:
+                        self.media_asked_for[id_media]['state'] = 'play'
+                # if the state of the video is "playing"
+                if self.media_asked_for[id_media]['state'] is 'play':
+                    if self.media_asked_for[id_media]['buffer'] >= self.media_asked_for[id_media]['bitrate']:
+                        self.media_asked_for[id_media]['buffer'] -= self.media_asked_for[id_media]['bitrate']
+                    else:
+                        self.media_asked_for[id_media]['buffer'] = 0
+                    if self.media_asked_for[id_media]['buffer'] is 0:
+                        # change the state if we want to wait for the buffer to be filled
+                        if self.play_wait_buffer:
+                            self.media_asked_for[id_media]['state'] = 'buffer'
+                        #print("Buffer empty for video "+str(id_media))
+                        self._video_stopped(id_media)
+                    percentage = self.media_asked_for[id_media]['buffer']/self.buffer_size*100
+                    #print("Buffer for media "+str(id_media)+" filled at "+str(percentage)+"%")
+            simu.sleep(1)
+
+
+    def start_video_consumer(self):
+        """ starts the thread to consume videos"""
+        self.play_thread.start()
+
+    def _video_stopped(self, id_video=None):
+        """ Hook to count how many times videos are stopping
+            (because of a bad network inducing an empty buffer)
+        """
+        # if id_video != None:
+        #     print("Video "+str(id_video)+" stopped playing on client "+self.name)
+        # else:
+        #     print("A video stopped playing on client "+self.name)
+        pass
+
 
     def request_media(self, id_media, server_id=1):
         """
@@ -230,10 +285,13 @@ class Client(Peer):
         """
         payload = {'idServer': server_id, 'idVideo': id_media}
         self.request(payload, None, 'videoRequest')
-        self.media_asked_for[id_media] = {'received': 0, 'size': None}
+        self.media_asked_for[id_media] = {'received': 0, 'size': None, 'bitrate': 0, 'buffer': 0, 'state': 'stop'}
 
     def set_buffer_size(self, buffer_size):
         self.buffer_size = buffer_size
+
+    def set_play_wait_buffer(self, play_wait_buffer):
+        self.play_wait_buffer = play_wait_buffer
 
     def received_callback(self, data):
         self._received_data = data
@@ -249,10 +307,12 @@ class Client(Peer):
             # if this is the first chunk we receive
             if not self.media_asked_for[id_media]['size']:
                 self.media_asked_for[id_media]['size'] = data['plSize']
+                self.media_asked_for[id_media]['bitrate'] = data['payload']['bitrate']
 
             oldBuffer = self.media_asked_for[id_media]['received']
             # we update how much we received for this media
             self.media_asked_for[id_media]['received'] += data['chunkSize']
+            self.media_asked_for[id_media]['buffer'] += data['chunkSize']
             #print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
             play_buffer = self.media_asked_for[id_media]['received']
             # if the download is complete
@@ -260,10 +320,15 @@ class Client(Peer):
                 self.download_complete(id_media)
 
             # start playing the video if the buffer was previously not filled enough and is now ok
-            if play_buffer >= self.buffer_size and oldBuffer < play_buffer:
+            if play_buffer >= self.buffer_size and oldBuffer < play_buffer \
+            and self.media_asked_for[id_media]['state'] is 'stop':
+                self.media_asked_for[id_media]['state'] = 'play'
                 self.start_playback(id_media)
         else:
             Peer.received_callback(self, data)
+
+    def try_playback(self):
+        pass
 
     def start_playback(self, id_media=None, data=None):
         """ To signal that we can start the playback
@@ -366,6 +431,7 @@ class ForwardProxy(AbstractProxy):
         return forward_data
 
     def _process_video_request(self, data):
+        #print("DATA "+str(data))
         forward_data = self._pack_forward_request(data)
         self.connection[data['payload']['idServer']].send(forward_data, 'forwardchunk')
 
