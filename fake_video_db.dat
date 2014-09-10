@@ -1,0 +1,13 @@
+# sample video DB
+"id_server","id_video","size","duration","bitrate","title","description"
+#
+1,1,4578,13,360,"First video","This is the description of the first video"
+1,2,33451,45,800,"Second video","This is the description of the second video"
+1,3,22013,18,1300,"Third video","This is the description of the third video"
+1,4,12332,25,500,"Fourth video","This is the description of the fourth video"
+1,5,8922,20,500,"Fifth video","This is the description of the fifth video"
+1,6,64101,32,2000,"Sixth video","This is the description of the sixth video"
+1,7,7010,28,250,"Seventh video","This is the description of the seventh video"
+1,8,75005,62,1300,"Ninth video","This is the description of the ninth video"
+1,9,22104,92,250,"Tenth video","This is the description of the tenth video"
+1,10,5301,21,260,"Eleventh video","This is the description of the eleventh video"

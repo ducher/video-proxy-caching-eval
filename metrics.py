@@ -87,7 +87,6 @@ def TwoMethodsTimerAndCounter(func1, func2, func3, param_pos=None, param_name=No
                     totalTime = time.time() - self.__startTime[id_]
                     totalTime = simu.real_time(totalTime)
                     self.__latencies.append(totalTime)
-                    print("Video id: "+str(id_))
                     print("Took "+str(totalTime)+" seconds for client "+ str(self.__wrapped.get_id()) + " Video: "+str(id_)+" Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
                     del self.__startTime[id_]
                     

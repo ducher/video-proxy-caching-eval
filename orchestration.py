@@ -200,6 +200,7 @@ o = Orchestrator()
 
 o.set_up()
 o.skip_inactivity = False
-cProfile.run('o.run_simulation()')
+#cProfile.run('o.run_simulation()')
+o.run_simulation()
 o.wait_end()
 o.gather_statistics("stats_fake")
