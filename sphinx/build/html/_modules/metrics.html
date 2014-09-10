@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>metrics &mdash; Proxy Caching Evaluation Framework 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Proxy Caching Evaluation Framework 0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for metrics</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<span class="kn">import</span> <span class="nn">simu</span>
+
+<span class="c"># To time how long it takes to receive a response to a request</span>
+<span class="c"># keeps track of the packetId, so that mangled calls can be distinguished</span>
+<span class="k">def</span> <span class="nf">PacketTimer</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="n">func2</span><span class="p">):</span>                        <span class="c"># On @ decorator</span>
+<div class="viewcode-block" id="PacketTimer"><a class="viewcode-back" href="../metrics.html#metrics.PacketTimer">[docs]</a>    <span class="k">def</span> <span class="nf">ClassBuilder</span><span class="p">(</span><span class="n">aClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Wrapper</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>           <span class="c"># On instance creation</span>
+                <span class="c"># stores the begining timestamps when timing</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                <span class="c"># to start all the latencies, for statistics purpose</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span> <span class="o">=</span> <span class="n">aClass</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>     <span class="c"># Use enclosing scope name</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc2</span><span class="p">)</span>
+
+
+            <span class="k">def</span> <span class="nf">__startTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="c"># keeping track of the request with the _num_packet, which will be used to send the request</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">_num_packet</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+            <span class="k">def</span> <span class="nf">__stopTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packetid</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c">#packetid = self.__wrapped.receivedData[&#39;responseTo&#39;]</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="n">packetid</span><span class="p">]</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">simu</span><span class="o">.</span><span class="n">real_time</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="c">#self.__startTime.remove(packetid)</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="n">packetid</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Took &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; seconds for &quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">get_id</span><span class="p">())</span> <span class="o">+</span> <span class="s">&quot; Average: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">))))</span>
+                    
+            <span class="k">def</span> <span class="nf">__newFunc1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTimer</span><span class="p">()</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__newFunc2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c"># the function needs the packetId it is answering to stop the right timer</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__stopTimer</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;responseTo&#39;</span><span class="p">])</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrname</span><span class="p">):</span>
+                <span class="c"># necessary to get the latencies</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">attrname</span> <span class="ow">is</span> <span class="s">&#39;latencies&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span>
+                <span class="c"># to keep the original methods working</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="p">,</span> <span class="n">attrname</span><span class="p">)</span>    <span class="c"># Delegate to wrapped obj</span>
+        <span class="k">return</span> <span class="n">Wrapper</span>
+    <span class="k">return</span> <span class="n">ClassBuilder</span>
+
+<span class="c"># Time how long between the last call of func1 and first call of func2.</span>
+<span class="c"># Once func2 has been called, can time another interval.</span>
+<span class="c"># Counts how many times func3 has been called</span>
+<span class="c"># param: parameter to track in func1 and func2 when having multiple requests at the same time</span>
+<span class="k">def</span> <span class="nf">TwoMethodsTimerAndCounter</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="n">func2</span><span class="p">,</span> <span class="n">func3</span><span class="p">,</span> <span class="n">param_pos</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">param_name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>           <span class="c"># On @ decorator</span></div>
+<div class="viewcode-block" id="TwoMethodsTimerAndCounter"><a class="viewcode-back" href="../metrics.html#metrics.TwoMethodsTimerAndCounter">[docs]</a>    <span class="k">def</span> <span class="nf">ClassBuilder</span><span class="p">(</span><span class="n">aClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Wrapper</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>           <span class="c"># On instance creation</span>
+                <span class="c"># stores the begining timestamps when timing</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                <span class="c"># to start all the latencies, for statistics purpose</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span> <span class="o">=</span> <span class="n">aClass</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>     <span class="c"># Use enclosing scope name</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func3</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc3</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__startTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">id_</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Start&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+            <span class="k">def</span> <span class="nf">__stopTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">id_</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">id_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">:</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">simu</span><span class="o">.</span><span class="n">real_time</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Took &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; seconds for client &quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">get_id</span><span class="p">())</span> <span class="o">+</span> <span class="s">&quot; Video: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">id_</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; Average: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">))))</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span>
+                    
+            <span class="k">def</span> <span class="nf">__newFunc1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c">#print(&quot;__newFunc1&quot;)</span>
+                <span class="n">id_</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="n">param_pos</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">param_pos</span><span class="p">:</span>
+                    <span class="n">id_</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">param_pos</span><span class="p">]</span>
+                    <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">id_</span><span class="p">))</span>
+                <span class="k">elif</span> <span class="n">param_name</span> <span class="ow">and</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">kargs</span><span class="p">:</span>
+                    <span class="n">id_</span> <span class="o">=</span> <span class="n">kargs</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+                
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTimer</span><span class="p">(</span><span class="n">id_</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__newFunc2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c">#print(&quot;__newFunc2&quot;)</span>
+                <span class="n">id_</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="n">param_pos</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">param_pos</span><span class="p">:</span>
+                    <span class="n">id_</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">param_pos</span><span class="p">]</span>
+                <span class="k">elif</span> <span class="n">param_name</span> <span class="ow">and</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">kargs</span><span class="p">:</span>
+                    <span class="n">id_</span> <span class="o">=</span> <span class="n">kargs</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__stopTimer</span><span class="p">(</span><span class="n">id_</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__newFunc3</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c">#print(&quot;__newFunc1&quot;)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc3</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrname</span><span class="p">):</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">attrname</span> <span class="ow">is</span> <span class="s">&#39;counter&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span>
+                <span class="c"># necessary to get the latencies</span>
+                <span class="k">elif</span><span class="p">(</span><span class="n">attrname</span> <span class="ow">is</span> <span class="s">&#39;latencies&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span>
+                <span class="c"># to keep the original methods working</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="p">,</span> <span class="n">attrname</span><span class="p">)</span>    <span class="c"># Delegate to wrapped obj</span>
+        <span class="k">return</span> <span class="n">Wrapper</span>
+    <span class="k">return</span> <span class="n">ClassBuilder</span>
+
+<span class="c"># Time how long between the last call of func1 and first call of func2.</span>
+<span class="c"># Once func2 has been called, can time another interval.</span>
+<span class="k">def</span> <span class="nf">TwoMethodsTimer</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="n">func2</span><span class="p">):</span>                        <span class="c"># On @ decorator</span></div>
+<div class="viewcode-block" id="TwoMethodsTimer"><a class="viewcode-back" href="../metrics.html#metrics.TwoMethodsTimer">[docs]</a>    <span class="k">def</span> <span class="nf">ClassBuilder</span><span class="p">(</span><span class="n">aClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Wrapper</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>           <span class="c"># On instance creation</span>
+                <span class="c"># stores the begining timestamp when timing</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">=</span> <span class="mi">0</span>  
+                <span class="c"># to start all the latencies, for statistics purpose</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span> <span class="o">=</span> <span class="n">aClass</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>     <span class="c"># Use enclosing scope name</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__newFunc2</span><span class="p">)</span>
+
+
+            <span class="k">def</span> <span class="nf">__startTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Start&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+            <span class="k">def</span> <span class="nf">__stopTimer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span>
+                    <span class="n">totalTime</span> <span class="o">=</span> <span class="n">simu</span><span class="o">.</span><span class="n">real_time</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Took &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">totalTime</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; seconds for &quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="o">.</span><span class="n">get_id</span><span class="p">())</span> <span class="o">+</span> <span class="s">&quot; Average: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span><span class="p">))))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__startTime</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">def</span> <span class="nf">__newFunc1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c">#print(&quot;__newFunc1&quot;)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__startTimer</span><span class="p">()</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc1</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__newFunc2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">):</span>
+                <span class="c">#print(&quot;__newFunc2&quot;)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__stopTimer</span><span class="p">()</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oldFunc2</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrname</span><span class="p">):</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">attrname</span> <span class="ow">is</span> <span class="s">&#39;latencies&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__latencies</span>
+                <span class="c"># to keep the original methods working</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__wrapped</span><span class="p">,</span> <span class="n">attrname</span><span class="p">)</span>    <span class="c"># Delegate to wrapped obj</span>
+        <span class="k">return</span> <span class="n">Wrapper</span>
+    <span class="k">return</span> <span class="n">ClassBuilder</span>
+
+<span class="k">class</span> <span class="nc">ProxyHitCounter</span><span class="p">:</span></div>
+<div class="viewcode-block" id="ProxyHitCounter"><a class="viewcode-back" href="../metrics.html#metrics.ProxyHitCounter">[docs]</a>    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache_hits</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nb_served</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte_served</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte_cache</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">_from_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size_kB</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">size_kb</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; kilo bytes - bits &quot;&quot;&quot;</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">size_kB</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size_kB</span>
+        <span class="k">elif</span> <span class="n">size_kb</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size_kb</span><span class="o">/</span><span class="mi">8</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte_cache</span> <span class="o">+=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte_served</span> <span class="o">+=</span> <span class="n">size</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache_hits</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nb_served</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_from_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size_kB</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">size_kb</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">size_kB</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size_kB</span>
+        <span class="k">elif</span> <span class="n">size_kb</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size_kb</span><span class="o">/</span><span class="mi">8</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte_served</span> <span class="o">+=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nb_served</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ProxyHitCounter.get_stats"><a class="viewcode-back" href="../metrics.html#metrics.ProxyHitCounter.get_stats">[docs]</a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_hit_stats</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_hit_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
+<div class="viewcode-block" id="ProxyHitCounter.get_hit_stats"><a class="viewcode-back" href="../metrics.html#metrics.ProxyHitCounter.get_hit_stats">[docs]</a>        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;cache_hits&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_hits</span><span class="p">,</span>
+                <span class="s">&#39;nb_served&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_nb_served</span><span class="p">,</span>
+                <span class="s">&#39;hit_ratio&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_hits</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_nb_served</span><span class="p">,</span>
+                <span class="s">&#39;byte_cache&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_byte_cache</span><span class="p">,</span>
+                <span class="s">&#39;byte_served&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_byte_served</span><span class="p">,</span>
+                <span class="s">&#39;byte_hit_ratio&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_byte_cache</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_byte_served</span><span class="p">}</span>
+
+
+<span class="k">class</span> <span class="nc">PlotStats</span><span class="p">:</span></div></div>
+<div class="viewcode-block" id="PlotStats"><a class="viewcode-back" href="../metrics.html#metrics.PlotStats">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot_latencies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latencies</span><span class="p">):</span>
+<div class="viewcode-block" id="PlotStats.plot_latencies"><a class="viewcode-back" href="../metrics.html#metrics.PlotStats.plot_latencies">[docs]</a>        <span class="k">print</span><span class="p">(</span><span class="s">&quot;plot&quot;</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">latencies</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">latencies</span><span class="p">,</span> <span class="s">&#39;b-o&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">hist_latencies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latencies</span><span class="p">):</span></div>
+<div class="viewcode-block" id="PlotStats.hist_latencies"><a class="viewcode-back" href="../metrics.html#metrics.PlotStats.hist_latencies">[docs]</a>        <span class="k">print</span><span class="p">(</span><span class="s">&quot;hist&quot;</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">latencies</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">latencies</span><span class="p">,</span><span class="n">bins</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pierre Ducher.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

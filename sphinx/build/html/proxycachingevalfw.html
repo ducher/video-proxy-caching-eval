@@ -1,0 +1,389 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>proxycachingevalfw module &mdash; Proxy Caching Evaluation Framework 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Proxy Caching Evaluation Framework 0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-proxycachingevalfw">
+<span id="proxycachingevalfw-module"></span><h1>proxycachingevalfw module<a class="headerlink" href="#module-proxycachingevalfw" title="Permalink to this headline">¶</a></h1>
+<p>A framework to easily test new proxy caching algorithms.</p>
+<p>units:</p>
+<ul class="simple">
+<li>data in kb</li>
+<li>time in seconds</li>
+<li>bandwidth in kb/s</li>
+</ul>
+<dl class="class">
+<dt id="proxycachingevalfw.AbstractProxy">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">AbstractProxy</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#AbstractProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.AbstractProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.BaseProxy" title="proxycachingevalfw.BaseProxy"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.BaseProxy</span></tt></a></p>
+<p>base for more sophisticated proxy working with the requests defined in the specs</p>
+<p>Splits the received_callback into 3 different possibilities:</p>
+<ul class="simple">
+<li>processVideoRequest for a video request from a client and maybe forward it to a Video Server</li>
+<li>processResponseTo for the responses the Proxy receives, usually the video he asked</li>
+<li>processOther for anything else</li>
+</ul>
+<dl class="method">
+<dt id="proxycachingevalfw.AbstractProxy.received_callback">
+<tt class="descname">received_callback</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#AbstractProxy.received_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.AbstractProxy.received_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>This will filter through the different type of packets
+and cal the appropriate function.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.BaseProxy">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">BaseProxy</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#BaseProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.BaseProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.Peer</span></tt></a></p>
+<p>Bare bone proxy, doing almost nothing</p>
+<p>The base only includes a way to be connected to multiple peers at the same time.
+No disconnection yet, though.</p>
+<dl class="method">
+<dt id="proxycachingevalfw.BaseProxy.connect_to">
+<tt class="descname">connect_to</tt><big>(</big><em>peer</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#BaseProxy.connect_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.BaseProxy.connect_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.Client">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">Client</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.Peer</span></tt></a></p>
+<p>Represents a client, which downloads videos through the Proxy.
+Can be monitored wit the metrics in metrics.python.
+Can consume videos (play them) to measure how many times the video stops.
+For the latter feature, call start_video_consumer.</p>
+<dl class="attribute">
+<dt id="proxycachingevalfw.Client.buffer_size">
+<tt class="descname">buffer_size</tt><em class="property"> = None</em><a class="headerlink" href="#proxycachingevalfw.Client.buffer_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>bufferSize in Kb</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.download_complete">
+<tt class="descname">download_complete</tt><big>(</big><em>id_media=None</em>, <em>data=None</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.download_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.download_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.received_callback">
+<tt class="descname">received_callback</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.received_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.received_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.request_media">
+<tt class="descname">request_media</tt><big>(</big><em>id_media</em>, <em>server_id=1</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.request_media"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.request_media" title="Permalink to this definition">¶</a></dt>
+<dd><p>A really useful function.</p>
+<p>Returns None</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.set_buffer_size">
+<tt class="descname">set_buffer_size</tt><big>(</big><em>buffer_size</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.set_buffer_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.set_buffer_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.set_play_wait_buffer">
+<tt class="descname">set_play_wait_buffer</tt><big>(</big><em>play_wait_buffer</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.set_play_wait_buffer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.set_play_wait_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.set_two_in_a_row_protection">
+<tt class="descname">set_two_in_a_row_protection</tt><big>(</big><em>two_in_a_row_protection</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.set_two_in_a_row_protection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.set_two_in_a_row_protection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.start_playback">
+<tt class="descname">start_playback</tt><big>(</big><em>id_media=None</em>, <em>data=None</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.start_playback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.start_playback" title="Permalink to this definition">¶</a></dt>
+<dd><p>To signal that we can start the playback</p>
+<p>Should only be called inernaly, is here so that a timer decorator
+can now when this is called and stop the timer.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Client.start_video_consumer">
+<tt class="descname">start_video_consumer</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Client.start_video_consumer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Client.start_video_consumer" title="Permalink to this definition">¶</a></dt>
+<dd><p>starts the thread to consume videos</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.Connection">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">Connection</tt><big>(</big><em>peer=None</em>, <em>latency=2</em>, <em>bandwidth=1024</em>, <em>max_chunk=8</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Unidirectional connection</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>peer</strong> (<a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">Peer</span></tt></a>) &#8211; the Peer we want to send data to</li>
+<li><strong>latency</strong> (<em>int</em>) &#8211; the latency in seconds</li>
+<li><strong>bandwidth</strong> (<em>int</em>) &#8211; the speed of the connection, in kb/s</li>
+<li><strong>max_chunk</strong> (<em>int</em>) &#8211; the maximum size in which a packet will be devided
+if it is too large, in kb</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.connect">
+<tt class="descname">connect</tt><big>(</big><em>peer</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.connect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Connect to antoher <a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">Peer</span></tt></a>
+This is a one-way communication,
+so this Connection will only be able to send data to this Peer</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>peer</strong> (<a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">Peer</span></tt></a>) &#8211; Who we want to send data to</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.send">
+<tt class="descname">send</tt><big>(</big><em>data</em>, <em>mode='normal'</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.send"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.send" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.set_bandwidth">
+<tt class="descname">set_bandwidth</tt><big>(</big><em>bandwidth=1024</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.set_bandwidth"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.set_bandwidth" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.set_lag">
+<tt class="descname">set_lag</tt><big>(</big><em>latency=2</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.set_lag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.set_lag" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.set_max_chunk">
+<tt class="descname">set_max_chunk</tt><big>(</big><em>max_chunk=8</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.set_max_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.set_max_chunk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Connection.worker">
+<tt class="descname">worker</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Connection.worker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Connection.worker" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.FIFOProxy">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">FIFOProxy</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#FIFOProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.FIFOProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.ForwardProxy" title="proxycachingevalfw.ForwardProxy"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.ForwardProxy</span></tt></a>, <a class="reference internal" href="metrics.html#metrics.ProxyHitCounter" title="metrics.ProxyHitCounter"><tt class="xref py py-class docutils literal"><span class="pre">metrics.ProxyHitCounter</span></tt></a></p>
+<p>cache video in a limited size cache,
+remove the oldest video(s) when full</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.ForwardProxy">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">ForwardProxy</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#ForwardProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.ForwardProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.AbstractProxy" title="proxycachingevalfw.AbstractProxy"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.AbstractProxy</span></tt></a></p>
+<p>A proxy forwarding everything and caching nothing</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.Peer">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">Peer</tt><big>(</big><em>id_</em>, <em>name=None</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Common base for classes that are communicating</p>
+<p>The Peer class gives a base for communication, all communicating classes
+should inherit from it.</p>
+<p>IDs conventions:</p>
+<ul class="simple">
+<li>0 for the proxy</li>
+<li>from 1 to 1000 for VideoServers</li>
+<li>from 1001 to infinity for the clients</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>id</strong> (<em>int</em>) &#8211; an ID identifying the Peer on the &#8216;network&#8217;, should be unique</li>
+<li><strong>name</strong> (<em>str</em>) &#8211; a easy to read name, optional</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="proxycachingevalfw.Peer.connect_to">
+<tt class="descname">connect_to</tt><big>(</big><em>peer</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer.connect_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer.connect_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Peer.get_id">
+<tt class="descname">get_id</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer.get_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Peer.received_callback">
+<tt class="descname">received_callback</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer.received_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer.received_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Meant to be called to give data to the Peer</p>
+<p>The <a class="reference internal" href="#proxycachingevalfw.Connection" title="proxycachingevalfw.Connection"><tt class="xref py py-class docutils literal"><span class="pre">Connection</span></tt></a> uses it when data is available for a Peer.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (<em>dict</em>) &#8211; The data to give to the peer.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="proxycachingevalfw.Peer.received_data">
+<tt class="descname">received_data</tt><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer.received_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer.received_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.Peer.request">
+<tt class="descname">request</tt><big>(</big><em>data</em>, <em>size=None</em>, <em>type_='other'</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#Peer.request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.Peer.request" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.UnlimitedProxy">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">UnlimitedProxy</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#UnlimitedProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.UnlimitedProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.ForwardProxy" title="proxycachingevalfw.ForwardProxy"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.ForwardProxy</span></tt></a></p>
+<p>Proxy caching everything, without a size limit.
+Once an object is accessed, it is stored in the cache</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="proxycachingevalfw.VideoServer">
+<em class="property">class </em><tt class="descclassname">proxycachingevalfw.</tt><tt class="descname">VideoServer</tt><big>(</big><em>*args</em>, <em>**kargs</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#VideoServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.VideoServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#proxycachingevalfw.Peer" title="proxycachingevalfw.Peer"><tt class="xref py py-class docutils literal"><span class="pre">proxycachingevalfw.Peer</span></tt></a></p>
+<p>Simulation of the video server, can store &#8216;videos&#8217;
+and give them through the connection</p>
+<dl class="method">
+<dt id="proxycachingevalfw.VideoServer.add_video">
+<tt class="descname">add_video</tt><big>(</big><em>duration=0</em>, <em>size=0</em>, <em>bitrate=0</em>, <em>title=''</em>, <em>description=''</em>, <em>id_=None</em>, <em>video=None</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#VideoServer.add_video"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.VideoServer.add_video" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a video to the video server.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>duration</strong> (<em>int</em>) &#8211; The duration of the video in seconds</li>
+<li><strong>size</strong> (<em>int</em>) &#8211; Size of the video in kilobits</li>
+<li><strong>bitrate</strong> (<em>int</em>) &#8211; Bitrate of the video in kb/s</li>
+<li><strong>title</strong> (<em>str</em>) &#8211; Title of the video</li>
+<li><strong>description</strong> (<em>str</em>) &#8211; Description of the video</li>
+<li><strong>id</strong> (<em>int</em>) &#8211; optional, if not specified, the id will be the previous+1</li>
+<li><strong>video</strong> &#8211; if specified, ignores everything else.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="proxycachingevalfw.VideoServer.received_callback">
+<tt class="descname">received_callback</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/proxycachingevalfw.html#VideoServer.received_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#proxycachingevalfw.VideoServer.received_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/proxycachingevalfw.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pierre Ducher.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

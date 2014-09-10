@@ -1,0 +1,562 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>tests &mdash; Proxy Caching Evaluation Framework 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Proxy Caching Evaluation Framework 0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for tests</h1><div class="highlight"><pre>
+<span class="c"># test module for the framework</span>
+
+<span class="kn">from</span> <span class="nn">proxycachingevalfw</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">metrics</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">simu</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="nd">@PacketTimer</span><span class="p">(</span><span class="s">&#39;request&#39;</span><span class="p">,</span> <span class="s">&#39;received_callback&#39;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">TimedPeer</span><span class="p">(</span><span class="n">Peer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;method&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__method</span><span class="p">()</span>
+
+<span class="nd">@TwoMethodsTimerAndCounter</span><span class="p">(</span><span class="s">&quot;request_media&quot;</span><span class="p">,</span> <span class="s">&quot;start_playback&quot;</span><span class="p">,</span> <span class="s">&quot;_video_stopped&quot;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">StopClient</span><span class="p">(</span><span class="n">Client</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="nd">@TwoMethodsTimer</span><span class="p">(</span><span class="s">&quot;request_media&quot;</span><span class="p">,</span> <span class="s">&quot;start_playback&quot;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">LatenciesClient</span><span class="p">(</span><span class="n">Client</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<div class="viewcode-block" id="TestSimuHelpers"><a class="viewcode-back" href="../tests.html#tests.TestSimuHelpers">[docs]</a><span class="k">class</span> <span class="nc">TestSimuHelpers</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestSimuHelpers.test_sleep"><a class="viewcode-back" href="../tests.html#tests.TestSimuHelpers.test_sleep">[docs]</a>    <span class="k">def</span> <span class="nf">test_sleep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">speed</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">speed</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">*</span> <span class="n">speed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestSimuHelpers.test_no_active_download"><a class="viewcode-back" href="../tests.html#tests.TestSimuHelpers.test_no_active_download">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_active_download</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;s1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+
+        <span class="c"># we set the chunk to a big size so that we can determine accurately the download time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span><span class="o">.</span><span class="n">set_max_chunk</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span><span class="o">.</span><span class="n">set_max_chunk</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">video</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1337</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">simu</span><span class="o">.</span><span class="n">no_active_download</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)))</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">simu</span><span class="o">.</span><span class="n">no_active_download</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)))</span>
+
+
+</div></div>
+<div class="viewcode-block" id="TestRequestResponse"><a class="viewcode-back" href="../tests.html#tests.TestRequestResponse">[docs]</a><span class="k">class</span> <span class="nc">TestRequestResponse</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestRequestResponse.setUp"><a class="viewcode-back" href="../tests.html#tests.TestRequestResponse.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">Peer</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">Peer</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span> <span class="o">=</span> <span class="n">Peer</span><span class="p">(</span><span class="mi">1003</span><span class="p">,</span> <span class="s">&quot;c3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">ForwardProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestRequestResponse.test_requests"><a class="viewcode-back" href="../tests.html#tests.TestRequestResponse.test_requests">[docs]</a>    <span class="k">def</span> <span class="nf">test_requests</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;lol&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;pouet&quot;</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="s">&#39;There you go: lol&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="s">&#39;There you go: pouet&#39;</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="TestClient"><a class="viewcode-back" href="../tests.html#tests.TestClient">[docs]</a><span class="k">class</span> <span class="nc">TestClient</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestClient.setUp"><a class="viewcode-back" href="../tests.html#tests.TestClient.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># testing direct access to a video server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&quot;s2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span> <span class="o">=</span> <span class="n">StopClient</span><span class="p">(</span><span class="mi">1004</span><span class="p">,</span> <span class="s">&quot;c4&quot;</span><span class="p">)</span>
+
+        <span class="c"># we set the chunk to a big size so that we can determine accurately the download time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">StopClient</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">StopClient</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">ForwardProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;s1&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestClient.test_buffer_big_bitrate"><a class="viewcode-back" href="../tests.html#tests.TestClient.test_buffer_big_bitrate">[docs]</a>    <span class="k">def</span> <span class="nf">test_buffer_big_bitrate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">409600</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">4096</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Big bitrate&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">bigvideo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c">#self.assertEqual(self.c4.received_data[&#39;payload&#39;], self.video)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c">#print(str(self.c4.counter))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestClient.test_wait_vs_nowait"><a class="viewcode-back" href="../tests.html#tests.TestClient.test_wait_vs_nowait">[docs]</a>    <span class="k">def</span> <span class="nf">test_wait_vs_nowait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">40960</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">4096</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Big bitrate&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">bigvideo</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">set_buffer_size</span><span class="p">(</span><span class="mi">6144</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">counter</span><span class="p">))</span>
+        <span class="n">counter1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">counter</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">counter</span><span class="p">))</span>
+        <span class="n">counter2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">counter</span> <span class="o">-</span> <span class="n">counter1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">counter1</span><span class="p">,</span> <span class="n">counter2</span><span class="p">)</span>
+
+
+</div>
+<div class="viewcode-block" id="TestClient.test_two_videos_buffer_nowait"><a class="viewcode-back" href="../tests.html#tests.TestClient.test_two_videos_buffer_nowait">[docs]</a>    <span class="k">def</span> <span class="nf">test_two_videos_buffer_nowait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">video1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">7680</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">768</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="n">video2</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">7500</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">1500</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="c">#print(str(self.c2.counter))</span>
+        <span class="c">#print(str(self.c1.counter))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestClient.test_two_videos_buffer"><a class="viewcode-back" href="../tests.html#tests.TestClient.test_two_videos_buffer">[docs]</a>    <span class="k">def</span> <span class="nf">test_two_videos_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">video1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">7680</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">768</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="n">video2</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">7500</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">1500</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">set_play_wait_buffer</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">start_video_consumer</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="c">#print(str(self.c2.counter))</span>
+        <span class="c">#print(str(self.c1.counter))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        
+
+        <span class="k">pass</span>
+</div></div>
+<div class="viewcode-block" id="TestTiming"><a class="viewcode-back" href="../tests.html#tests.TestTiming">[docs]</a><span class="k">class</span> <span class="nc">TestTiming</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestTiming.setUp"><a class="viewcode-back" href="../tests.html#tests.TestTiming.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">TimedPeer</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">TimedPeer</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span> <span class="o">=</span> <span class="n">TimedPeer</span><span class="p">(</span><span class="mi">1003</span><span class="p">,</span> <span class="s">&quot;c3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">ForwardProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestTiming.test_basic_timing"><a class="viewcode-back" href="../tests.html#tests.TestTiming.test_basic_timing">[docs]</a>    <span class="k">def</span> <span class="nf">test_basic_timing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;lol&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;pouet&quot;</span><span class="p">)</span>
+        
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestTiming.test_queue"><a class="viewcode-back" href="../tests.html#tests.TestTiming.test_queue">[docs]</a>    <span class="k">def</span> <span class="nf">test_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># by sending two requests one right after the other and having a latency of 1/1</span>
+        <span class="c"># the first request should take 1+1 sec and the second 1+(1+1) as it has to wait for</span>
+        <span class="c"># the first to be sent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;lol&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&quot;pouet&quot;</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestTiming.test_wrapper"><a class="viewcode-back" href="../tests.html#tests.TestTiming.test_wrapper">[docs]</a>    <span class="k">def</span> <span class="nf">test_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">method</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="TestVideoServer"><a class="viewcode-back" href="../tests.html#tests.TestVideoServer">[docs]</a><span class="k">class</span> <span class="nc">TestVideoServer</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestVideoServer.setUp"><a class="viewcode-back" href="../tests.html#tests.TestVideoServer.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># testing direct access to a video server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&quot;s2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1004</span><span class="p">,</span> <span class="s">&quot;c4&quot;</span><span class="p">)</span>
+
+        <span class="c"># we set the chunk to a big size so that we can determine accurately the download time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span><span class="o">.</span><span class="n">set_max_chunk</span><span class="p">(</span><span class="mi">32000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span><span class="o">.</span><span class="n">set_max_chunk</span><span class="p">(</span><span class="mi">32000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">video</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1337</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="TestVideoServer.test_video_access"><a class="viewcode-back" href="../tests.html#tests.TestVideoServer.test_video_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_video_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestVideoServer.test_add_video_access"><a class="viewcode-back" href="../tests.html#tests.TestVideoServer.test_add_video_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_add_video_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">2048</span><span class="p">,</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;A video&#39;</span><span class="p">,</span> <span class="mi">1337</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestVideoServer.test_transfer_speed"><a class="viewcode-back" href="../tests.html#tests.TestVideoServer.test_transfer_speed">[docs]</a>    <span class="k">def</span> <span class="nf">test_transfer_speed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Big bitrate&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">bigvideo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">set_buffer_size</span><span class="p">(</span><span class="mi">8192</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Latency &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="c"># should take 4.2 seconds, latency is 0.1, so 2*0.1, the size 8192 divided by the speed 2048: 2*0.1+8192/2048 = 4.2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">4</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">)</span>
+
+        <span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">16384</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Biiiig bitrate&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s2</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">bigvideo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">9</span><span class="p">)</span>
+        <span class="c"># should take two times as much as it is two times as big</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">8</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">c4</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">9</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="TestForwardProxy"><a class="viewcode-back" href="../tests.html#tests.TestForwardProxy">[docs]</a><span class="k">class</span> <span class="nc">TestForwardProxy</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestForwardProxy.setUp"><a class="viewcode-back" href="../tests.html#tests.TestForwardProxy.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="mi">1003</span><span class="p">,</span> <span class="s">&quot;c3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">ForwardProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;s1&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">video1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1337</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">video2</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">9001</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">55</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2000</span><span class="o">/</span><span class="mi">55</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video 2&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Another video&#39;</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="TestForwardProxy.test_one_video_access"><a class="viewcode-back" href="../tests.html#tests.TestForwardProxy.test_one_video_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_one_video_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">9001</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video2</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TestForwardProxy.test_multiple_video_multiple_access"><a class="viewcode-back" href="../tests.html#tests.TestForwardProxy.test_multiple_video_multiple_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_multiple_video_multiple_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">9001</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">9001</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c3</span><span class="o">.</span><span class="n">received_data</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="TestUnlimitedProxy"><a class="viewcode-back" href="../tests.html#tests.TestUnlimitedProxy">[docs]</a><span class="k">class</span> <span class="nc">TestUnlimitedProxy</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestUnlimitedProxy.setUp"><a class="viewcode-back" href="../tests.html#tests.TestUnlimitedProxy.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">UnlimitedProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+
+        <span class="c">#good bandwidth between the clients and proxy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;s1&quot;</span><span class="p">)</span>
+
+        <span class="c">#but congested link between proxy and video server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">video1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1337</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Big bitrate&#39;</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="TestUnlimitedProxy.test_caching_benefits"><a class="viewcode-back" href="../tests.html#tests.TestUnlimitedProxy.test_caching_benefits">[docs]</a>    <span class="k">def</span> <span class="nf">test_caching_benefits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">set_two_in_a_row_protection</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+</div></div>
+<div class="viewcode-block" id="TestFIFOProxy"><a class="viewcode-back" href="../tests.html#tests.TestFIFOProxy">[docs]</a><span class="k">class</span> <span class="nc">TestFIFOProxy</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestFIFOProxy.setUp"><a class="viewcode-back" href="../tests.html#tests.TestFIFOProxy.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1001</span><span class="p">,</span> <span class="s">&quot;c1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span> <span class="o">=</span> <span class="n">LatenciesClient</span><span class="p">(</span><span class="mi">1002</span><span class="p">,</span> <span class="s">&quot;c2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">FIFOProxy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Proxy&quot;</span><span class="p">)</span>
+
+        <span class="c">#good bandwidth between the clients and proxy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">12000</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span> <span class="o">=</span> <span class="n">VideoServer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;s1&quot;</span><span class="p">)</span>
+
+        <span class="c">#but congested link between proxy and video server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">connect_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="p">)</span><span class="o">.</span><span class="n">set_lag</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">set_bandwidth</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">video1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1337</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">2048</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;A video&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bigvideo</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;idVideo&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s">&#39;size&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">,</span> <span class="s">&#39;bitrate&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="s">&#39;Big Video&#39;</span><span class="p">,</span> <span class="s">&#39;description&#39;</span><span class="p">:</span> <span class="s">&#39;Big bitrate&#39;</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="TestFIFOProxy.test_caching_benefits"><a class="viewcode-back" href="../tests.html#tests.TestFIFOProxy.test_caching_benefits">[docs]</a>    <span class="k">def</span> <span class="nf">test_caching_benefits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">set_buffer_size</span><span class="p">(</span><span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">set_buffer_size</span><span class="p">(</span><span class="mi">512</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">latencies</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c"># def test_plot(self):</span>
+    <span class="c">#     video2 = {&#39;idVideo&#39;: 9001, &#39;duration&#39;: 55, &#39;size&#39;: 2000, &#39;bitrate&#39;: 2000/55, &#39;title&#39;: &#39;Video 2&#39;, &#39;description&#39;: &#39;Another video&#39;}</span>
+
+    <span class="c">#     self.s1.add_video(video=self.video1)</span>
+    <span class="c">#     self.s1.add_video(video=video2)</span>
+    <span class="c">#     self.s1.add_video(video=self.bigvideo)</span>
+
+    <span class="c">#     self.c1.request_media(1337, 1)</span>
+
+    <span class="c">#     simu.sleep(3)</span>
+
+    <span class="c">#     self.c1.request_media(1337, 1)</span>
+    <span class="c">#     self.c2.request_media(9001, 1)</span>
+
+    <span class="c">#     simu.sleep(3)</span>
+
+    <span class="c">#     self.c1.request_media(9001, 1)</span>
+    <span class="c">#     self.c2.request_media(1337, 1)</span>
+
+    <span class="c">#     simu.sleep(3)</span>
+
+    <span class="c">#     self.c1.request_media(1337, 1)</span>
+    <span class="c">#     simu.sleep(3)</span>
+
+    <span class="c">#     self.c1.request_media(1337, 1)</span>
+    <span class="c">#     simu.sleep(3)</span>
+
+    <span class="c">#     self.c1.request_media(1, 1)</span>
+    <span class="c">#     simu.sleep(5)</span>
+    <span class="c">#     self.c2.request_media(1, 1)</span>
+    <span class="c">#     simu.sleep(5)</span>
+
+    <span class="c">#     print(self.c1.latencies)</span>
+
+    <span class="c">#     ps = PlotStats()</span>
+    <span class="c">#     ps.plot_latencies(self.c1.latencies)</span>
+    <span class="c">#     ps.hist_latencies(self.c1.latencies+self.c2.latencies)</span>
+</div>
+<div class="viewcode-block" id="TestFIFOProxy.test_cache_stats"><a class="viewcode-back" href="../tests.html#tests.TestFIFOProxy.test_cache_stats">[docs]</a>    <span class="k">def</span> <span class="nf">test_cache_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s1</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c2</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c"># don&#39;t know why but when requesting with c1, it doesn&#39;t work.</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">request_media</span><span class="p">(</span><span class="mi">1337</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">simu</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">get_hit_stats</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="s">&#39;byte_hit_ratio&#39;</span><span class="p">],</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="s">&#39;byte_cache&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video1</span><span class="p">[</span><span class="s">&#39;size&#39;</span><span class="p">]</span><span class="o">/</span><span class="mi">8</span><span class="p">)</span>
+
+</div></div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Proxy Caching Evaluation Framework 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pierre Ducher.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
