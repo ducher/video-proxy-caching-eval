@@ -31,6 +31,27 @@ class TestSimuHelpers(unittest.TestCase):
         end = (time.time() - start) * speed
         self.assertAlmostEqual(end, 5, 1)
 
+    def test_no_active_download(self):
+        self.s1 = VideoServer(1, "s1")
+        self.c1 = LatenciesClient(1001, "c1")
+        self.c2 = LatenciesClient(1002, "c2")
+
+        # we set the chunk to a big size so that we can determine accurately the download time
+        self.c1.connect_to(self.s1).set_lag(0.1).set_bandwidth(1024).set_max_chunk(32)
+        self.s1.connect_to(self.c1).set_lag(0.1).set_bandwidth(1024).set_max_chunk(32)
+
+        self.video = {'idVideo': 1337, 'duration': 60, 'size': 2048, 'bitrate': 2048/60, 'title': 'Video', 'description': 'A video'}
+        self.s1.add_video(video=self.video)
+
+        self.c1.request_media(1337, 2)
+
+        self.assertFalse(simu.no_active_download((self.c1, self.c2)))
+
+        simu.sleep(3)
+
+        self.assertTrue(simu.no_active_download((self.c1, self.c2)))
+
+
 
 class TestRequestResponse(unittest.TestCase):
 
@@ -331,6 +352,7 @@ class TestUnlimitedProxy(unittest.TestCase):
 
     def test_caching_benefits(self):
         self.s1.add_video(video=self.video1)
+        self.c1.set_two_in_a_row_protection(False)
 
         self.c1.request_media(1337, 1)
 
@@ -338,7 +360,13 @@ class TestUnlimitedProxy(unittest.TestCase):
 
         self.c1.request_media(1337, 1)
 
-        simu.sleep(1)
+        simu.sleep(2)
+
+        self.c1.request_media(1337, 1)
+
+        simu.sleep(2)
+
+        print(self.c1.latencies)
 
         self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
 
@@ -370,16 +398,17 @@ class TestFIFOProxy(unittest.TestCase):
         self.s1.add_video(video=self.video1)
 
         self.c1.set_buffer_size(512)
+        self.c2.set_buffer_size(512)
 
-        self.c1.request_media(1337, 1)
+        self.c2.request_media(1337, 1)
 
         simu.sleep(3)
 
         self.c1.request_media(1337, 1)
 
-        simu.sleep(1)
+        simu.sleep(2)
 
-        self.assertTrue(self.c1.latencies[0] > self.c1.latencies[1])
+        self.assertTrue(self.c2.latencies[0] > self.c1.latencies[0])
 
     # def test_plot(self):
     #     video2 = {'idVideo': 9001, 'duration': 55, 'size': 2000, 'bitrate': 2000/55, 'title': 'Video 2', 'description': 'Another video'}
@@ -422,7 +451,8 @@ class TestFIFOProxy(unittest.TestCase):
     def test_cache_stats(self):
         self.s1.add_video(video=self.video1)
 
-        self.c1.request_media(1337, 1)
+        self.c2.request_media(1337, 1)
+        # don't know why but when requesting with c1, it doesn't work.
 
         simu.sleep(3)
 

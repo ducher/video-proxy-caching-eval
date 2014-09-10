@@ -58,13 +58,13 @@ def PacketTimer(func1, func2):                        # On @ decorator
 # Time how long between the last call of func1 and first call of func2.
 # Once func2 has been called, can time another interval.
 # Counts how many times func3 has been called
-def TwoMethodsTimerAndCounter(func1, func2, func3):                        # On @ decorator
+# param: parameter to track in func1 and func2 when having multiple requests at the same time
+def TwoMethodsTimerAndCounter(func1, func2, func3, param_pos=None, param_name=None):           # On @ decorator
     def ClassBuilder(aClass):
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
-                # stores the begining timestamp when timing
                 # stores the begining timestamps when timing
-                self.__startTime = 0 
+                self.__startTime = dict()
                 # to start all the latencies, for statistics purpose
                 self.__latencies = []
                 self.__counter = 0
@@ -78,26 +78,39 @@ def TwoMethodsTimerAndCounter(func1, func2, func3):                        # On 
                 self.__wrapped.__setattr__(func2, self.__newFunc2)
                 self.__wrapped.__setattr__(func3, self.__newFunc3)
 
-            def __startTimer(self):
+            def __startTimer(self, id_=0):
                 print("Start")
-                self.__startTime = time.time()
+                self.__startTime[id_] = time.time()
 
-            def __stopTimer(self):
-                if self.__startTime != 0:
-                    totalTime = time.time() - self.__startTime
+            def __stopTimer(self, id_=0):
+                if id_ in self.__startTime:
+                    totalTime = time.time() - self.__startTime[id_]
                     totalTime = simu.real_time(totalTime)
                     self.__latencies.append(totalTime)
-                    print("Took "+str(totalTime)+" seconds for "+ str(self.__wrapped.get_id()) + " Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
-                    self.__startTime = 0
+                    print("Video id: "+str(id_))
+                    print("Took "+str(totalTime)+" seconds for client "+ str(self.__wrapped.get_id()) + " Video: "+str(id_)+" Average: "+str(sum(self.__latencies)/float(len(self.__latencies))))
+                    del self.__startTime[id_]
                     
             def __newFunc1(self, *args, **kargs):
                 #print("__newFunc1")
-                self.__startTimer()
+                id_ = 0
+                if param_pos != None and len(args) > param_pos:
+                    id_ = args[param_pos]
+                    print(str(id_))
+                elif param_name and param_name in kargs:
+                    id_ = kargs[param_name]
+                
+                self.__startTimer(id_)
                 return self.__oldFunc1( *args, **kargs)
 
             def __newFunc2(self, *args, **kargs):
                 #print("__newFunc2")
-                self.__stopTimer()
+                id_ = 0
+                if param_pos != None and len(args) > param_pos:
+                    id_ = args[param_pos]
+                elif param_name and param_name in kargs:
+                    id_ = kargs[param_name]
+                self.__stopTimer(id_)
                 return self.__oldFunc2( *args, **kargs)
 
             def __newFunc3(self, *args, **kargs):
@@ -184,7 +197,7 @@ class ProxyHitCounter:
         self._byte_served += size
 
         self._cache_hits += 1
-        self._nb_served +=1
+        self._nb_served += 1
 
     def _from_server(self, size_kB=None, size_kb=None):
         size = 0

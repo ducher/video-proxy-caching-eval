@@ -217,6 +217,10 @@ class Connection:
 #@TwoMethodsTimer("request_media", "start_playback")
 class Client(Peer):
     """Represents a client, which downloads videos through the Proxy.
+       Can be monitored wit the metrics in metrics.python.
+       Can consume videos (play them) to measure how many times the video stops.
+       For the latter feature, call start_video_consumer.
+
     """
 
     def __init__(self, *args, **kargs):
@@ -224,21 +228,27 @@ class Client(Peer):
         self.buffer_size = 1024
         """bufferSize in Kb"""
         self.media_asked_for = {}
-        self.play_thread = threading.Thread(target=self.play_videos)
+        self.media_downloading = 0
+        self.play_thread = threading.Thread(target=self._play_videos)
         self.play_thread.daemon = True
         
         # settings for the player thread
         self.play_auto = True
         self.play_wait_buffer = True
 
+        # to avoid asking the same video two times in a row
+        self.two_in_a_row_protection = True
+        self.last_media = None
+
         
 
-    def play_videos(self):
+    def _play_videos(self):
         """ Automatically consumes videos when the buffer has been filled initially
-            Runs in an independant thread.
+            Supposed to be run only in an independant thread.
             Runs once every simulated second.
         """
         while True:
+            # Infinite loop, not really efficient
             for id_media in self.media_asked_for:
                 # if the state of the video is "buffering"
                 if self.play_wait_buffer and self.media_asked_for[id_media]['state'] is 'buffer':
@@ -254,6 +264,7 @@ class Client(Peer):
                     if self.media_asked_for[id_media]['buffer'] is 0:
                         # change the state if we want to wait for the buffer to be filled
                         if self.play_wait_buffer:
+                            # only when we want to wait for a buffer refill each time it stops
                             self.media_asked_for[id_media]['state'] = 'buffer'
                         #print("Buffer empty for video "+str(id_media))
                         self._video_stopped(id_media)
@@ -283,15 +294,24 @@ class Client(Peer):
 
         Returns None
         """
+        print(self.name+" requesting: "+str(id_media)+", last media: "+str(self.last_media))
+        if self.two_in_a_row_protection and id_media == self.last_media:
+            print("Not requesting "+str(id_media))
+            return
+        self.last_media = id_media
         payload = {'idServer': server_id, 'idVideo': id_media}
         self.request(payload, None, 'videoRequest')
         self.media_asked_for[id_media] = {'received': 0, 'size': None, 'bitrate': 0, 'buffer': 0, 'state': 'stop'}
+        self.media_downloading += 1
 
     def set_buffer_size(self, buffer_size):
         self.buffer_size = buffer_size
 
     def set_play_wait_buffer(self, play_wait_buffer):
         self.play_wait_buffer = play_wait_buffer
+
+    def set_two_in_a_row_protection(self, two_in_a_row_protection):
+        self.two_in_a_row_protection = two_in_a_row_protection
 
     def received_callback(self, data):
         self._received_data = data
@@ -309,26 +329,24 @@ class Client(Peer):
                 self.media_asked_for[id_media]['size'] = data['plSize']
                 self.media_asked_for[id_media]['bitrate'] = data['payload']['bitrate']
 
-            oldBuffer = self.media_asked_for[id_media]['received']
+            oldReceived = self.media_asked_for[id_media]['received']
             # we update how much we received for this media
             self.media_asked_for[id_media]['received'] += data['chunkSize']
             self.media_asked_for[id_media]['buffer'] += data['chunkSize']
             #print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
-            play_buffer = self.media_asked_for[id_media]['received']
+            received = self.media_asked_for[id_media]['received']
             # if the download is complete
-            if play_buffer >= self.media_asked_for[id_media]['size']:
+            if received >= self.media_asked_for[id_media]['size']:
+                print("Downloaded "+str(self.media_asked_for[id_media]['received'])+" out of "+str(self.media_asked_for[id_media]['size'])+" for "+str(id_media))
                 self.download_complete(id_media)
 
             # start playing the video if the buffer was previously not filled enough and is now ok
-            if play_buffer >= self.buffer_size and oldBuffer < play_buffer \
+            if received >= self.buffer_size and oldReceived < received \
             and self.media_asked_for[id_media]['state'] is 'stop':
                 self.media_asked_for[id_media]['state'] = 'play'
-                self.start_playback(id_media)
+                self.start_playback(id_media=id_media)
         else:
             Peer.received_callback(self, data)
-
-    def try_playback(self):
-        pass
 
     def start_playback(self, id_media=None, data=None):
         """ To signal that we can start the playback
@@ -343,7 +361,8 @@ class Client(Peer):
     def download_complete(self, id_media=None, data=None):
         if not id_media:
             id_media = data['payload']['videoId']
-        print("Download of media "+str(id_media)+" completed.")
+        self.media_downloading -= 1
+        print("Download of media "+str(id_media)+" for client "+self.name+" completed.")
 
 class BaseProxy(Peer):
     """Bare bone proxy, doing almost nothing
