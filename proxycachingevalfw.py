@@ -60,6 +60,7 @@ class Peer:
         self._received_data = None
 
     def connect_to(self, peer):
+        """ connect a peer to another peer """
         self.connection = Connection(peer)
         return self.connection
 
@@ -78,6 +79,7 @@ class Peer:
         return real_data
 
     def request(self, data, size=None, type_='other'):
+        """ low level method to request something from the other peer """
         real_data = self._pack_data(data, size, type_)
         self.connection.send(real_data)
 
@@ -240,7 +242,11 @@ class Client(Peer):
         self.two_in_a_row_protection = True
         self.last_media = None
 
-        
+        # function to signal a new download pending
+        self.signal_new_download = self.print_new_dl
+
+        # function to signal a download being done
+        self.signal_end_download = self.print_end_dl
 
     def _play_videos(self):
         """ Automatically consumes videos when the buffer has been filled initially
@@ -302,7 +308,8 @@ class Client(Peer):
         payload = {'idServer': server_id, 'idVideo': id_media}
         self.request(payload, None, 'videoRequest')
         self.media_asked_for[id_media] = {'received': 0, 'size': None, 'bitrate': 0, 'buffer': 0, 'state': 'stop'}
-        self.media_downloading += 1
+        #self.media_downloading += 1
+        self.signal_new_download()
 
     def set_buffer_size(self, buffer_size):
         self.buffer_size = buffer_size
@@ -361,8 +368,25 @@ class Client(Peer):
     def download_complete(self, id_media=None, data=None):
         if not id_media:
             id_media = data['payload']['videoId']
-        self.media_downloading -= 1
+        #self.media_downloading -= 1
+        self.signal_end_download()
         print("Download of media "+str(id_media)+" for client "+self.name+" completed.")
+
+    def print_new_dl(self):
+        """ "Placeholder" for the signal_new_download function """
+        print("New dl")
+
+    def print_end_dl(self):
+        """ "Placeholder" for the signal_end_download function """
+        print("End dl")
+
+    def set_func_new_dl(self, func):
+        """ Change the function to call when starting a new download """
+        self.signal_new_download = func
+
+    def set_func_end_dl(self, func):
+        """ Change the function to call when starting a download is done """
+        self.signal_end_download = func
 
 class BaseProxy(Peer):
     """Bare bone proxy, doing almost nothing
@@ -477,6 +501,13 @@ class FIFOProxy(ForwardProxy, ProxyHitCounter):
         self.__cache_size = 0
         self.__cache_max_size = 3072
         ProxyHitCounter.__init__(self)
+
+    def set_cache_size(self, size):
+        """ Change the maximum size of the cache
+            Args:
+                size (int): the new size
+        """
+        self.__cache_max_size = size
 
     def _process_video_request(self, data):
         pld = data['payload']

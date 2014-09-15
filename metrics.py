@@ -211,12 +211,18 @@ class ProxyHitCounter:
         return self.get_hit_stats()
 
     def get_hit_stats(self):
+        hit_ratio = 0
+        byte_hit_ratio = 0
+        if self._nb_served != 0:
+            hit_ratio = self._cache_hits/self._nb_served
+        if self._byte_served != 0:
+            byte_hit_ratio = self._byte_cache/self._byte_served
         return {'cache_hits':self._cache_hits,
                 'nb_served':self._nb_served,
-                'hit_ratio':self._cache_hits/self._nb_served,
+                'hit_ratio':hit_ratio,
                 'byte_cache':self._byte_cache,
                 'byte_served':self._byte_served,
-                'byte_hit_ratio':self._byte_cache/self._byte_served}
+                'byte_hit_ratio':byte_hit_ratio}
 
 
 class PlotStats:
