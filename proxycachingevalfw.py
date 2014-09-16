@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #coding=utf-8
 """A framework to easily test new proxy caching algorithms.
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #coding=utf-8
 import csv
 import sys
@@ -23,7 +22,7 @@ class MetricClient(Client):
 class Orchestrator:
     """ Orchestrating the simulation """
     DEF_PRIO = 1
-    def __init__(self, speed=1, method='scheduler'):
+    def __init__(self, speed=1, method=None, conf={}):
         self._speed = speed
         self._clients_req = dict()
         self._clients = dict()
@@ -36,8 +35,10 @@ class Orchestrator:
         """ If true, the scheduler will accelerate time when the simu is inactive """
         self._req_event = threading.Event()
         """ For the event_lock method, so that we can wait"""
-        self.method = method
+        self.method = method or conf['orchestration']['method']
+        print("METHOD "+self.method)
         """can either be 'scheduler' or 'event_lock'"""
+        self.conf = conf
 
 
     def load_trace(self, file_path='fake_trace.dat'):
@@ -67,14 +68,14 @@ class Orchestrator:
             #print(row)
             
             delay = float(row['req_timestamp']) - first_tmstp
-            
-            if self.method is 'event_lock':
+
+            if self.method == 'event_lock':
                 """ if we use the event_lock method, we store the trace in a queue"""
                 event = {'delay': delay - last_delay, 'id_client': id_client, 'id_video': row['id_video'], 'id_server': int(row['id_server'])}
                 last_delay = delay
                 self._events_queue.put(event)
                 
-            elif self.method is 'scheduler':
+            elif self.method == 'scheduler':
                 """ if we use the scheduler method, we enter the requests as events 
                     in the scheduler
                 """
@@ -111,12 +112,18 @@ class Orchestrator:
         db_file.close()
         pass
 
-    def set_up(self):
+    def set_up(self, trace_path=None, db_path=None):
         """ sets things up """
         #trace_path = 'trace_cut.dat'
-        trace_path = 'fake_trace_fast.dat'
+        #trace_path = 'fake_trace_fast.dat'
         #db_path = 'db_passau2.dat'
-        db_path = 'fake_video_db.dat'
+        #db_path = 'fake_video_db.dat'
+
+        trace_path = trace_path or self.conf['orchestration']['trace_file']
+        db_path = db_path or self.conf['orchestration']['db_file']
+
+        print(trace_path)
+
         self.load_trace(trace_path)
         self.load_video_db(db_path)
 
@@ -152,7 +159,7 @@ class Orchestrator:
             the already filled and configured scheduler object. The option to skip
             inactivity should not be used as it is using a lot of CPU for nothing. 
         """
-        if self.method is 'event_lock':
+        if self.method == 'event_lock':
 
             if self.skip_inactivity:
                 simu.action_when_zero = self.signal_sys_inact
@@ -167,7 +174,7 @@ class Orchestrator:
 
                 self._clients[event['id_client']].request_media(event['id_video'], event['id_server'])
 
-        elif self.method is 'scheduler':
+        elif self.method == 'scheduler':
             if self.skip_inactivity:
                 while True:
                     """ Inefficient way to skip the inactivity """
@@ -185,6 +192,8 @@ class Orchestrator:
                         simu.sleep(next/2)
             else:
                 self._scheduler.run()
+        else:
+            print("run_simulation error: no method specified!")
 
     def wait_end(self):
         """ Waits for for all downloads to be over """
@@ -222,11 +231,15 @@ class Orchestrator:
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
+        print("Writing data to "+out_dir)
+
         client_file = open(out_dir+'/clients', 'w', newline='')
         client_keys= ['id_client','playout_latency']
         client_writer = csv.DictWriter(client_file,client_keys,quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
 
         client_writer.writeheader()
+
+        print("Writing clients data...")
 
         row_client = dict()
         row_client['id_client'] = None
@@ -249,6 +262,8 @@ class Orchestrator:
 
             id_client = client.get_id()
             proxy_stats = self._proxy.get_stats()
+
+            print("Writing proxy data...")
 
             proxy_writer = csv.DictWriter(proxy_file,proxy_stats.keys(),quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
             proxy_writer.writeheader()
@@ -280,10 +295,16 @@ class Orchestrator:
 
     def _connect_network(self):
         """ Connects all clients to the proxy and all servers to 
-            to the proxy with the default parameters.
+            to the proxy with the config parameters.
         """
-        self._connect_clients()
-        self._connect_servers()
+        self._connect_clients(self.conf['clients']['lag_down'],
+                              self.conf['clients']['down'], 
+                              self.conf['clients']['up'],
+                              self.conf['clients']['max_chunk'])
+        self._connect_servers(self.conf['servers']['lag_down'],
+                              self.conf['servers']['down'], 
+                              self.conf['servers']['up'],
+                              self.conf['servers']['max_chunk'])
 
     def _connect_clients(self, lag=0.1, bandwidth_down=4000, bandwidth_up=600, max_chunk=16):
         print("Connecting the clients...")
@@ -296,21 +317,3 @@ class Orchestrator:
         for server in self._servers.values():
             server.connect_to(self._proxy).set_lag(lag).set_bandwidth(bandwidth_up).set_max_chunk(max_chunk)
             self._proxy.connect_to(server).set_lag(lag).set_bandwidth(bandwidth_down).set_max_chunk(max_chunk)
-
-
-
-o = Orchestrator()
-#o.load_trace()
-#o.load_video_db()
-o.skip_inactivity = True
-o.method = 'event_lock'
-o.set_up()
-
-#cProfile.run('o.run_simulation()')
-# overriding the simulation speed
-#config.speed = 2
-o.run_simulation()
-o.wait_end()
-# waiting for everything to be really done
-time.sleep(5)
-o.gather_statistics("stats_fake")
