@@ -8,7 +8,7 @@ import os
 # to pretty print a time delta
 import datetime
 
-from proxycachingevalfw import *
+from model import *
 import simu
 
 import cProfile
@@ -142,7 +142,7 @@ class Orchestrator:
         self.load_trace(trace_path)
         self.load_video_db(db_path)
 
-        module = __import__('proxycachingevalfw')
+        module = __import__('model')
         ClassProxy = getattr(module, self.conf['proxy']['proxy_type'])
 
         self._proxy = ClassProxy(0, "Proxy")

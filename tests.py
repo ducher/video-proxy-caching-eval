@@ -1,6 +1,6 @@
 # test module for the framework
 
-from proxycachingevalfw import *
+from model import *
 from metrics import *
 import simu
 import unittest
