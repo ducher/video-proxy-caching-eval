@@ -34,7 +34,12 @@ class TestSimuHelpers(unittest.TestCase):
     def test_no_active_download(self):
         self.s1 = VideoServer(1, "s1")
         self.c1 = LatenciesClient(1001, "c1")
+        self.c1.set_func_new_dl(simu.inc_nb_dl)
+        self.c1.set_func_end_dl(simu.dec_nb_dl)
+        
         self.c2 = LatenciesClient(1002, "c2")
+        self.c2.set_func_new_dl(simu.inc_nb_dl)
+        self.c2.set_func_end_dl(simu.dec_nb_dl)
 
         # we set the chunk to a big size so that we can determine accurately the download time
         self.c1.connect_to(self.s1).set_lag(0.1).set_bandwidth(1024).set_max_chunk(32)
