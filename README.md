@@ -22,6 +22,28 @@ Run the program:
 
 You can interrupt it by pressing ctrl+c in a linux terminal, it will wait until the pending downloads are done and then write the statistics to the disk. If you don't want to wait and don't need the statistics, press ctrl+c again.
 
+## Extend the available proxies
+
+To extend an existing proxy or to develop and new one, create a new file, for instance extend.py, and write your new proxy in it like this:
+
+    #coding=utf-8
+    """
+    Custom module example to add a Proxy
+    """
+
+    import model
+
+    class MyOwnProxy(model.ForwardProxy):
+        pass
+
+Of cours, your proxy should do something more than "pass", but that is just an example. Then in the config.ini file, have those lines:
+
+    [proxy]
+    proxy_type=MyOwnProxy
+    module=extend
+
+The Orchestrator will automatically load your proxy from your module file.
+
 ## Input
 
 As you can see in the sample files, the input is *two csv files*. Values are separated by ',' and non numerical values must be enclosed in '"'. They can be described as the following:

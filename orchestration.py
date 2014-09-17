@@ -142,7 +142,11 @@ class Orchestrator:
         self.load_trace(trace_path)
         self.load_video_db(db_path)
 
-        module = __import__('model')
+        module_name = 'model'
+        if 'module' in self.conf['proxy']:
+            module_name = self.conf['proxy']['module']
+
+        module = __import__(module_name)
         ClassProxy = getattr(module, self.conf['proxy']['proxy_type'])
 
         self._proxy = ClassProxy(0, "Proxy")
