@@ -488,7 +488,13 @@ class ForwardProxy(AbstractProxy):
                                     response_to=data['packetId'])
         self.connection[data['sender']].send(real_data)
 
-class FIFOProxy(ForwardProxy, ProxyHitCounter):
+class CachingProxy(metaclass=ABCMeta):
+    """ Common interface for proxies that are actually caching objects """
+    @abc.abstractmethod
+    def set_cache_size(self, size):
+        pass
+
+class FIFOProxy(ForwardProxy, ProxyHitCounter, CachingProxy):
     """ cache video in a limited size cache, 
     remove the oldest video(s) when full
     """

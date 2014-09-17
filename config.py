@@ -17,12 +17,15 @@ def load_config_file(file = 'config.ini'):
     global wait_acc
     global raw_conf
 
-    raw_conf.read(file)
+    if raw_conf.read(file):
 
-    speed = raw_conf.getfloat('simulation', 'speed')
-    wait_acc = raw_conf.getfloat('simulation', 'wait_acc')
+        speed = raw_conf.getfloat('simulation', 'speed')
+        wait_acc = raw_conf.getfloat('simulation', 'wait_acc')
 
-    pass
+        return True
+
+    print("Config File "+file+" not found")
+    return False
 
 
 
@@ -49,3 +52,25 @@ def get_config_dict(file=None):
 
 def get_orchestration_config_dict(file=None):
     return get_sub_config_dict(file, ['orchestration', 'proxy', 'clients', 'servers'])
+
+def set_skip_activity(value):
+    global raw_conf
+    raw_conf.set('orchestration', 'skip_inactivity', str(value))
+
+def set_consume_videos(value):
+    global raw_conf
+    raw_conf.set('clients', 'consume_videos', str(value))
+
+def set_trace_file(value):
+    global raw_conf
+    raw_conf.set('orchestration', 'trace_file', value)
+
+def set_db_file(value):
+    global raw_conf
+    raw_conf.set('orchestration', 'db_file', value)
+
+def set_speed(value):
+    global raw_conf
+    global speed
+    raw_conf.set('simulation', 'speed', str(value))
+    speed = value

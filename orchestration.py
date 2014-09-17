@@ -5,6 +5,9 @@ import traceback
 import sched, time
 import os
 
+# to pretty print a time delta
+import datetime
+
 from proxycachingevalfw import *
 import simu
 
@@ -39,6 +42,9 @@ class Orchestrator:
         print("METHOD "+self.method)
         """can either be 'scheduler' or 'event_lock'"""
         self.conf = conf
+        """ dictionary to store the configuration values """
+        self._duration = 0
+        """ to track the progress of the simulation """
 
 
     def load_trace(self, file_path='fake_trace.dat'):
@@ -49,6 +55,7 @@ class Orchestrator:
         trace_reader = csv.DictReader(filter(lambda row: row[0]!='#', trace_file))
         # needed to have a relative delay in case of the event_lock method
         last_delay = 0
+        #delay = 0
         for row in trace_reader:
             # +1000 because clients begin at id 1000
             id_client = int(row['id_client'])+1000
@@ -58,6 +65,8 @@ class Orchestrator:
                 if self.skip_inactivity:
                     self._clients[id_client].set_func_new_dl(simu.inc_nb_dl)
                     self._clients[id_client].set_func_end_dl(simu.dec_nb_dl)
+                if self.conf['clients']['consume_videos']:
+                    self._clients[id_client].start_video_consumer()
             if first_tmstp is None:
                 first_tmstp = float(row['req_timestamp'])
             #id_clients.add(id_client)
@@ -71,7 +80,7 @@ class Orchestrator:
 
             if self.method == 'event_lock':
                 """ if we use the event_lock method, we store the trace in a queue"""
-                event = {'delay': delay - last_delay, 'id_client': id_client, 'id_video': row['id_video'], 'id_server': int(row['id_server'])}
+                event = {'delay_abs': delay, 'delay': delay - last_delay, 'id_client': id_client, 'id_video': row['id_video'], 'id_server': int(row['id_server'])}
                 last_delay = delay
                 self._events_queue.put(event)
                 
@@ -84,6 +93,12 @@ class Orchestrator:
                                       self.DEF_PRIO, 
                                       self._clients[id_client].request_media, 
                                       argument=(row['id_video'], int(row['id_server'])))
+
+        self._duration = delay
+        
+        print("Duration of the trace: "+str(datetime.timedelta(seconds=self._duration)))
+        print("Duration of the simulation (max): "+str(datetime.timedelta(seconds=self._duration/config.speed)))
+
         trace_file.close()
 
         #self._create_clients(list(id_clients))
@@ -127,8 +142,13 @@ class Orchestrator:
         self.load_trace(trace_path)
         self.load_video_db(db_path)
 
-        self._proxy = FIFOProxy(0, "Proxy")
-        self._proxy.set_cache_size(16000)
+        module = __import__('proxycachingevalfw')
+        ClassProxy = getattr(module, self.conf['proxy']['proxy_type'])
+
+        self._proxy = ClassProxy(0, "Proxy")
+
+        if(isinstance(self._proxy, CachingProxy)):
+            self._proxy.set_cache_size(self.conf['proxy']['cache_size'])
 
         self._connect_network()
 
@@ -159,41 +179,47 @@ class Orchestrator:
             the already filled and configured scheduler object. The option to skip
             inactivity should not be used as it is using a lot of CPU for nothing. 
         """
-        if self.method == 'event_lock':
+        try:
+            if self.method == 'event_lock':
 
-            if self.skip_inactivity:
-                simu.action_when_zero = self.signal_sys_inact
+                if self.skip_inactivity:
+                    simu.action_when_zero = self.signal_sys_inact
 
-            while not self._events_queue.empty():
-                event = self._events_queue.get()
-                print("New event: "+str(event))
-                self._req_event.clear()
+                while not self._events_queue.empty():
+                    event = self._events_queue.get()
+                    print("New event: "+str(event))
+                    self._req_event.clear()
 
-                if not simu.no_active_download():
-                    self._req_event.wait(event['delay'])
+                    if not self.skip_inactivity or not simu.no_active_download():
+                        self._req_event.wait(event['delay'])
 
-                self._clients[event['id_client']].request_media(event['id_video'], event['id_server'])
+                    self._clients[event['id_client']].request_media(event['id_video'], event['id_server'])
 
-        elif self.method == 'scheduler':
-            if self.skip_inactivity:
-                while True:
-                    """ Inefficient way to skip the inactivity """
-                    next = self._scheduler.run(False)
-                    # have a threshold to avoid testing the inavtivity all the time
-                    if next != None:
-                        if next/config.speed >= 1:
-                            # if it takes more than 1 second in real time
-                            if simu.no_active_download(self._clients.values()):
-                                simu.add_time(next-1)
-                                print("Skiping inactivity!")
-                    elif self._scheduler.empty():
-                        return
-                    else:
-                        simu.sleep(next/2)
+            elif self.method == 'scheduler':
+                if self.skip_inactivity:
+                    while True:
+                        """ Inefficient way to skip the inactivity """
+                        next = self._scheduler.run(False)
+                        # have a threshold to avoid testing the inavtivity all the time
+                        if next != None:
+                            if next/config.speed >= 1:
+                                # if it takes more than 1 second in real time
+                                if simu.no_active_download(self._clients.values()):
+                                    simu.add_time(next-1)
+                                    print("Skiping inactivity!")
+                        elif self._scheduler.empty():
+                            return
+                        else:
+                            simu.sleep(next/2)
+                else:
+                    self._scheduler.run()
             else:
-                self._scheduler.run()
-        else:
-            print("run_simulation error: no method specified!")
+                print("run_simulation error: no method specified!")
+        except (KeyboardInterrupt, SystemExit):
+            print(' ')
+            print("Simulation interupted. To exist, press ctrl+c again.")
+            print(' ')
+            #return
 
     def wait_end(self):
         """ Waits for for all downloads to be over """
@@ -228,16 +254,25 @@ class Orchestrator:
             Format of clients: CSV with a latency and the corresponding id client
             Format of proxy: precomputed values like hit ratio, also CSV but one line
         """
+        # waiting for everything to be really done
+        time.sleep(5)
+
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
         print("Writing data to "+out_dir)
 
-        client_file = open(out_dir+'/clients', 'w', newline='')
+        client_file = open(out_dir+'/clients_latencies', 'w', newline='')
         client_keys= ['id_client','playout_latency']
         client_writer = csv.DictWriter(client_file,client_keys,quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
 
         client_writer.writeheader()
+
+        client_stop_file = open(out_dir+'/clients_stops', 'w', newline='')
+        client_stop_keys= ['id_client','nb_stops']
+        client_stop_writer = csv.DictWriter(client_stop_file,client_stop_keys,quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
+
+        client_stop_writer.writeheader()
 
         print("Writing clients data...")
 
@@ -245,8 +280,16 @@ class Orchestrator:
         row_client['id_client'] = None
         row_client['playout_latency'] = None
 
+        row_client_stop = dict()
+        row_client_stop['id_client'] = None
+        row_client_stop['nb_stops'] = None
+
         for client in self._clients.values():
             id_client = client.get_id()
+            if hasattr(client, 'counter'):
+                row_client_stop['id_client'] = id_client
+                row_client_stop['nb_stops'] = client.counter
+                client_stop_writer.writerow(row_client_stop)
             if hasattr(client, 'latencies'):
                 latencies = client.latencies
                 for latency in latencies:
@@ -255,6 +298,7 @@ class Orchestrator:
                     client_writer.writerow(row_client)
 
         client_file.close()
+        client_stop_file.close()
 
         if hasattr(self._proxy, 'get_stats'):
             proxy_file = open(out_dir+'/proxy', 'w', newline='')

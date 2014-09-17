@@ -3,12 +3,13 @@
 This framework will enable you to easily evaluate your new video proxy caching algorithm or compare existing algorithms. The framework is writtent in Python 3, an easy to read and write language for an easily extensible and comprehensible framework.
 
 ## Usage
+There is a command line interface with cli.py. Running it with --help will show you the different option. Running it withou arguments will look for a config.ini file to load and run the simulation according to this file.
 
-For now, you have to modify the orchestrator.py file so that it uses your own files. Sample files are provided, named fake\_*. In these files you can see the expected input of the two files, the trace and the databases. The output will be written in the folder given as argument to "gather\_statistics", still in orchestration.py. For now this statistics are just all the playout latencies of all clients, unidentified.
+You can also use the the orchestrator.py module with your own files. Sample files are provided, named fake\_*. In these files you can see the expected input of the two files, the trace and the databases. The output will be written in the folder given as argument to "gather\_statistics", still in orchestration.py. For now this statistics are just all the playout latencies of all clients, unidentified.
 
 The minimal code to have is something like this:
 
-    o = Orchestrator() # create a new orchestrator
+    o = orchestration.Orchestrator(conf=conf_orch) # create a new orchestrator
     o.set_up() # loads the trace and DB, creates the model
     o.skip_inactivity = False # to have a more realistic simulation
     o.run_simulation() # runs the simulation
@@ -17,7 +18,9 @@ The minimal code to have is something like this:
 
 Run the program:
 
-    ./orchestrator.py
+    ./cli.py
+
+You can interrupt it by pressing ctrl+c in a linux terminal, it will wait until the pending downloads are done and then write the statistics to the disk. If you don't want to wait and don't need the statistics, press ctrl+c again.
 
 ## Input
 
@@ -31,7 +34,7 @@ The second one is the trace file contaning the requests from the clients for a g
 
 ## Output
 
-The output is also a CSV file, containing the values gathered by the different metrics. For now it is just the playout latencies of each client.
+The output is also CSV files, containing the values gathered by the different metrics. For now it is just the playout latencies of each client, the number of time the playout stopped for each client and the hit rate/ cache rate of the proxy server.
 
 ## Warnings
 
