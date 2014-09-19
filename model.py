@@ -488,19 +488,160 @@ class ForwardProxy(AbstractProxy):
                                     response_to=data['packetId'])
         self.connection[data['sender']].send(real_data)
 
-class CachingProxy(metaclass=ABCMeta):
+    def _get_req_info(self, id_req):
+        return self.active_requests[id_req]
+
+class CachingInterface(metaclass=ABCMeta):
     """ Common interface for proxies that are actually caching objects """
+
+    def __init__(self, *args, **kargs):
+        pass
+
     @abc.abstractmethod
     def set_cache_size(self, size):
         pass
 
-class FIFOProxy(ForwardProxy, ProxyHitCounter, CachingProxy):
+class CachingProxy(ForwardProxy, CachingInterface, ProxyHitCounter, metaclass=ABCMeta):
+    """ Common abstract class for proxies that are actually caching objects 
+
+        To implement your own Proxy, extend this Class.
+        You have to implement the abstract methods:
+            _cache_admission: return true or false depending whether or not you 
+                              you want to cache the video
+            _id_to_evict: return a video id to remove from the cache
+            _new_video_inserted: is called when a new video is inserted in the 
+                                 cache. The video is passed as a parameter. Use 
+                                 it to update your data about the cache.
+
+        A fairly simple example is the FIFOProxy. The FIFOProxyOld shows the same
+        proxy but without the help of this abstract class.
+    """
+
+    def __init__(self, *args, **kargs):
+        ForwardProxy.__init__(self, *args, **kargs)
+        ProxyHitCounter.__init__(self)
+        self.__cachedb = dict()
+        self.__cache_size = 0
+        self.__cache_max_size = 4096
+
+    def set_cache_size(self, size):
+        """ Change the maximum size of the cache
+            Args:
+                size (int): the new size
+        """
+        self.__cache_max_size = size
+
+    @abc.abstractmethod
+    def _cache_admission(self, video):
+        """ Should return true to admit the video in the cache
+        """
+        pass
+
+    @abc.abstractmethod
+    def _id_to_evict(self):
+        """ should return the id of the video we can remove
+            used in case the proxy is full
+            This is the cache eviction part of the proxy
+        """
+        pass
+
+    @abc.abstractmethod
+    def _new_video_inserted(self, video):
+        """ To signal that a new video has been inserted.
+            Use this to update your data/statistics to make
+            later decisions on what video to evict.
+        """
+        pass
+
+    def _cache_full(self, newSize=0):
+        """ check if the cache is full, or will be if we add the new size """
+        return (self.__cache_size+newSize) >= self.__cache_max_size
+
+    def _make_space_for_new_video(self, video=None, size=None):
+        """ Removes videos until we have enough space """
+        vsize = size
+        if video != None:
+            vsize = video['size']
+
+        while self._cache_full(vsize):
+            id_evict = self._id_to_evict()
+            self.__cache_size -= self.__cachedb[id_evict]['size']
+            del self.__cachedb[id_evict]
+
+    def _insert_new_video(self, video):
+        """ inserts a new video, updates the cache size"""
+        self.__cachedb[video['idVideo']] = video
+        self.__cache_size += video['size']
+        self._new_video_inserted(video)
+
+    def _process_video_request(self, data):
+        pld = data['payload']
+        if pld['idVideo'] in self.__cachedb:
+            video = self.__cachedb[pld['idVideo']]
+            # for the metric, ProxyHitCounter
+            self._from_cache(size_kb=video['size'])
+
+            new_data = self._pack_data(video, video['size'], 
+                                       'video', data['packetId'])
+            self.connection[data['sender']].send(new_data)
+        else:
+            forward_data = self._pack_forward_request(data)
+            self.connection[data['payload']['idServer']].send(forward_data, 
+                                                              'forwardchunk')
+
+    def _process_response_to(self, data):
+        response_to = data['responseTo']
+        req_info = self._get_req_info(response_to)
+
+        pld = data['payload']
+        
+        if pld['idVideo'] not in self.__cachedb and\
+           self._cache_admission(pld) and\
+           pld['size'] < self.__cache_max_size:
+            """ cache the video, if it's not already in the cache
+                and we decide to cache it
+                and it's smaller than the cache size
+            """
+            # for the metric
+            self._from_server(size_kb=pld['size'])
+
+            self._make_space_for_new_video(pld)
+            self._insert_new_video(pld)
+
+        new_data = self._pack_forward_response(data)
+
+        self.connection[req_info['origSender']].send(new_data, 'forwardchunk')
+
+class FIFOProxy(CachingProxy):
     """ cache video in a limited size cache, 
-    remove the oldest video(s) when full
+        remove the oldest video(s) when full
     """
     def __init__(self, *args, **kargs):
-        AbstractProxy.__init__(self, *args, **kargs)
-        self.active_requests = dict()
+        CachingProxy.__init__(self, *args, **kargs)
+        """ Data structure to decide which video to evict """
+        self.__cache_fifo = deque()
+
+    def _cache_admission(self, video):
+        """ We admit everything """
+        return True
+
+    def _id_to_evict(self):
+        """ removes and returns the id of the video to evict """
+        return self.__cache_fifo.popleft()
+
+    def _new_video_inserted(self, video):
+        self.__cache_fifo.append(video['idVideo'])
+
+
+class FIFOProxyOld(ForwardProxy, ProxyHitCounter, CachingInterface):
+    """ Old implentation of a FIFOProxy, to show how to do a proxy without the 
+        help of the CachingProxy abstract class.
+
+        cache video in a limited size cache, 
+        remove the oldest video(s) when full
+    """
+    def __init__(self, *args, **kargs):
+        ForwardProxy.__init__(self, *args, **kargs)
         self.__cachedb = dict()
         self.__cache_fifo = deque()
         self.__cache_size = 0
@@ -513,6 +654,8 @@ class FIFOProxy(ForwardProxy, ProxyHitCounter, CachingProxy):
                 size (int): the new size
         """
         self.__cache_max_size = size
+
+    
 
     def _process_video_request(self, data):
         pld = data['payload']
@@ -531,7 +674,7 @@ class FIFOProxy(ForwardProxy, ProxyHitCounter, CachingProxy):
 
     def _process_response_to(self, data):
         response_to = data['responseTo']
-        req_info = self.active_requests[response_to]
+        req_info = self._get_req_info(response_to)
 
         pld = data['payload']
         # cache the video, if it's smaller than the cache size

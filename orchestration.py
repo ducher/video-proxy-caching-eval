@@ -42,7 +42,44 @@ class Orchestrator:
         print("METHOD "+self.method)
         """can either be 'scheduler' or 'event_lock'"""
         self.conf = conf
-        """ dictionary to store the configuration values """
+        """ dictionary to store the configuration values.
+            This dictionnary is usually created by the config module.
+            
+            Format of the values:
+            {
+             'orchestration':
+                {
+                 'method': 'event_lock'|'scheduler'
+                 'skip_inactivity': True|False
+                 'trace_file': '/path/to/file' (optional when passing args to set_up())
+                 'db_file': '/path/to/file' (optional when passing args to set_up())
+                }
+             'proxy':
+                {
+                 'proxy_type': NameOfTheProxyClass
+                 'cache_size': int (only for proxy inheriting from CachingProxy)
+                 'module': modulename (only when using your own proxy in your own module)
+                }
+             'clients':
+                {
+                 'up': int (speed in kb/s)
+                 'down': int (speed in kb/s)
+                 'lag_up': float (latency in seconds)
+                 'lag_down': float (latency in seconds)
+                 'max_chunk': int (size in kb)
+                 'consume_videos': True|False
+                 'metrics': (not used yet)
+                }
+             'servers':
+                {
+                 'up': int (speed in kb/s)
+                 'down': int (speed in kb/s)
+                 'lag_up': float (latency in seconds)
+                 'lag_down': float (latency in seconds)
+                 'max_chunk': int (size in kb)
+                }
+            }
+        """
         self._duration = 0
         """ to track the progress of the simulation """
 
@@ -151,7 +188,7 @@ class Orchestrator:
 
         self._proxy = ClassProxy(0, "Proxy")
 
-        if(isinstance(self._proxy, CachingProxy)):
+        if(isinstance(self._proxy, CachingInterface)):
             self._proxy.set_cache_size(self.conf['proxy']['cache_size'])
 
         self._connect_network()

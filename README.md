@@ -16,11 +16,11 @@ The minimal code to have is something like this:
     o.wait_end() # waits for the simulation to 
     o.gather_statistics("stats_fake") # writes the statistics to the folder "stats_fake"
 
-Run the program:
+To run the command line interface:
 
-    ./cli.py
+    ./cli.py [-h]
 
-You can interrupt it by pressing ctrl+c in a linux terminal, it will wait until the pending downloads are done and then write the statistics to the disk. If you don't want to wait and don't need the statistics, press ctrl+c again.
+You can interrupt it by pressing ctrl+c (in a linux terminal), it will wait until the pending downloads are done and then write the statistics to the disk. If you don't want to wait and don't need the statistics, press ctrl+c again.
 
 ## Extend the available proxies
 
@@ -36,7 +36,40 @@ To extend an existing proxy or to develop and new one, create a new file, for in
     class MyOwnProxy(model.ForwardProxy):
         pass
 
-Of cours, your proxy should do something more than "pass", but that is just an example. Then in the config.ini file, have those lines:
+Of course, your proxy should do something more than "pass", but that is just an example. To have the metrics, you have to inherit from ProxyHitCounter and use the right methods at the right place. To have the cache size set correctly with the parameter specified in the .ini file, you need to inherit from CachingInterface and implement the set\_cache\_size method. 
+
+**It is strongly advised to extend the CachingProxy** abstract class, as it is much easier. The metrics and CachingInterface are already integrated. Of course if you are too limited by this abstract class, extend directly another proxy, like the ForwardProxy. With this abstract class, you only have to implement three methods:
+    
+    _cache_admission(video): return true or false depending whether or not you 
+                              you want to cache the video
+    _id_to_evict(): return a video id to remove from the cache
+    _new_video_inserted(video): is called when a new video is inserted in the 
+                         cache. The video is passed as a parameter. Use 
+                         it to update your data about the cache.
+
+An example with the FIFO Proxy algorithm, only ~12 lines of code:
+
+    class FIFOProxy(CachingProxy):
+        """ cache video in a limited size cache, 
+            remove the oldest video(s) when full
+        """
+        def __init__(self, *args, **kargs):
+            CachingProxy.__init__(self, *args, **kargs)
+            """ Data structure to decide which video to evict """
+            self.__cache_fifo = deque()
+
+        def _cache_admission(self, video):
+            """ We admit everything """
+            return True
+
+        def _id_to_evict(self):
+            """ removes and returns the id of the video to evict """
+            return self.__cache_fifo.popleft()
+
+        def _new_video_inserted(self, video):
+            self.__cache_fifo.append(video['idVideo'])
+
+To use it your MyOwnProxy class in your extend.py file, in the config.ini file, have those lines:
 
     [proxy]
     proxy_type=MyOwnProxy
@@ -49,7 +82,7 @@ The Orchestrator will automatically load your proxy from your module file.
 As you can see in the sample files, the input is *two csv files*. Values are separated by ',' and non numerical values must be enclosed in '"'. They can be described as the following:
 The first one is the database file containing a description of the videos in each video server like this:
 
-    "id\_server","id\_video","size","duration","bitrate","title","description"
+    "id_server","id_video","size","duration","bitrate","title","description"
 The second one is the trace file contaning the requests from the clients for a given video on a given server at a given time like this:
 
     "id_client","req_timestamp","id_video","id_server"
