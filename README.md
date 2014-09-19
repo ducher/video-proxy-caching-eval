@@ -38,16 +38,19 @@ To extend an existing proxy or to develop and new one, create a new file, for in
 
 Of course, your proxy should do something more than "pass", but that is just an example. To have the metrics, you have to inherit from ProxyHitCounter and use the right methods at the right place. To have the cache size set correctly with the parameter specified in the .ini file, you need to inherit from CachingInterface and implement the set\_cache\_size method. 
 
-**It is strongly advised to extend the CachingProxy** abstract class, as it is much easier. The metrics and CachingInterface are already integrated. Of course if you are too limited by this abstract class, extend directly another proxy, like the ForwardProxy. With this abstract class, you only have to implement three methods:
+**It is strongly advised to extend the CachingProxy** abstract class, as it is much easier. The metrics and CachingInterface are already integrated. Of course if you are too limited by this abstract class, extend directly another proxy, like the ForwardProxy. With this abstract class, you only have to implement four methods:
     
     _cache_admission(video): return true or false depending whether or not you 
                               you want to cache the video
     _id_to_evict(): return a video id to remove from the cache
     _new_video_inserted(video): is called when a new video is inserted in the 
-                         cache. The video is passed as a parameter. Use 
-                         it to update your data about the cache.
+                                cache. The video is passed as a parameter. Use 
+                                it to update your data about the cache.
+    _video_served(video): is called when a new video is served from the 
+                          cache. The video is passed as a parameter. Use 
+                          it to update your data about the cache.
 
-An example with the FIFO Proxy algorithm, only ~12 lines of code:
+An example with the FIFO Proxy algorithm, only ~14 lines of code:
 
     class FIFOProxy(CachingProxy):
         """ cache video in a limited size cache, 
@@ -57,17 +60,20 @@ An example with the FIFO Proxy algorithm, only ~12 lines of code:
             CachingProxy.__init__(self, *args, **kargs)
             """ Data structure to decide which video to evict """
             self.__cache_fifo = deque()
-
+    
         def _cache_admission(self, video):
             """ We admit everything """
             return True
-
+    
         def _id_to_evict(self):
             """ removes and returns the id of the video to evict """
             return self.__cache_fifo.popleft()
-
+    
         def _new_video_inserted(self, video):
             self.__cache_fifo.append(video['idVideo'])
+        
+        def _video_served(self, video):
+            pass
 
 To use it your MyOwnProxy class in your extend.py file, in the config.ini file, have those lines:
 

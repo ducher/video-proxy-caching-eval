@@ -512,6 +512,9 @@ class CachingProxy(ForwardProxy, CachingInterface, ProxyHitCounter, metaclass=AB
             _new_video_inserted: is called when a new video is inserted in the 
                                  cache. The video is passed as a parameter. Use 
                                  it to update your data about the cache.
+            _video_served: is called when a new video is served from the 
+                           cache. The video is passed as a parameter. Use 
+                           it to update your data about the cache.
 
         A fairly simple example is the FIFOProxy. The FIFOProxyOld shows the same
         proxy but without the help of this abstract class.
@@ -553,6 +556,14 @@ class CachingProxy(ForwardProxy, CachingInterface, ProxyHitCounter, metaclass=AB
         """
         pass
 
+    @abc.abstractmethod
+    def _video_served(self, video):
+        """ To signal that a video has been served from the cache.
+            Use this to update your data/statistics to make
+            later decisions on what video to evict.
+        """
+        pass
+
     def _cache_full(self, newSize=0):
         """ check if the cache is full, or will be if we add the new size """
         return (self.__cache_size+newSize) >= self.__cache_max_size
@@ -583,6 +594,7 @@ class CachingProxy(ForwardProxy, CachingInterface, ProxyHitCounter, metaclass=AB
 
             new_data = self._pack_data(video, video['size'], 
                                        'video', data['packetId'])
+            self._video_served(video)
             self.connection[data['sender']].send(new_data)
         else:
             forward_data = self._pack_forward_request(data)
@@ -628,6 +640,34 @@ class FIFOProxy(CachingProxy):
     def _id_to_evict(self):
         """ removes and returns the id of the video to evict """
         return self.__cache_fifo.popleft()
+
+    def _video_served(self, video):
+        pass
+
+    def _new_video_inserted(self, video):
+        self.__cache_fifo.append(video['idVideo'])
+
+class BetterFIFOProxy(CachingProxy):
+    """ cache video in a limited size cache, 
+        remove the oldest video(s) when full
+    """
+    def __init__(self, *args, **kargs):
+        CachingProxy.__init__(self, *args, **kargs)
+        """ Data structure to decide which video to evict """
+        self.__cache_fifo = deque()
+
+    def _cache_admission(self, video):
+        """ We admit everything """
+        return True
+
+    def _id_to_evict(self):
+        """ removes and returns the id of the video to evict """
+        return self.__cache_fifo.popleft()
+
+    def _video_served(self, video):
+        # when a video is re-accessed, we replace it at the top of the stack
+        self.__cache_fifo.remove(video['idVideo'])
+        self.__cache_fifo.append(video['idVideo'])
 
     def _new_video_inserted(self, video):
         self.__cache_fifo.append(video['idVideo'])
