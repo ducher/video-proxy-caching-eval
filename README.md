@@ -22,6 +22,8 @@ To run the command line interface:
 
 You can interrupt it by pressing ctrl+c (in a linux terminal), it will wait until the pending downloads are done and then write the statistics to the disk. If you don't want to wait and don't need the statistics, press ctrl+c again.
 
+You can compare a Proxy to another by using the command line option --compare-to ProxyClassName. The graphics generated will compare the two proxies and the output files have the name of the proxy concerned.
+
 ## Extend the available proxies
 
 To extend an existing proxy or to develop and new one, create a new file, for instance extend.py, and write your new proxy in it like this:
@@ -96,6 +98,8 @@ The second one is the trace file contaning the requests from the clients for a g
 ## Output
 
 The output is also CSV files, containing the values gathered by the different metrics. For now it is just the playout latencies of each client, the number of time the playout stopped for each client and the hit rate/ cache rate of the proxy server.
+
+There are also two graphics in png format. One is the mean playout latencies of each client and the other the two hit ratios of the proxy.
 
 ## Warnings
 
