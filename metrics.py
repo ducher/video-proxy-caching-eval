@@ -1,6 +1,10 @@
 #coding=utf-8
 import time
+
 import matplotlib.pyplot as plt
+import numpy as np
+import statistics as sts
+import collections as collec
 
 import simu
 
@@ -227,11 +231,148 @@ class ProxyHitCounter:
 
 class PlotStats:
 
+
+
     def plot_latencies(self, latencies):
         print("plot")
         print(latencies)
         plt.plot(latencies, 'b-o')
         plt.show()
+
+    def plot_cache_stats(self, path='graphs', proxy_stats=None):
+        """ proxy_stats: dictionnary
+            Example:
+            {
+                'FIFOProxy':
+                    {
+                        "byte_served":9733.5,
+                        "byte_hit_ratio":0.4025273539836647,
+                        "byte_cache"3918.0,
+                        "hit_ratio":0.36363636363636365,
+                        "cache_hits":4,
+                        "nb_served":11
+                    },
+                'LRUProxy':
+                    {
+                     ...
+                    }
+            }
+        """
+        # Example data
+        proxies = proxy_stats.keys()
+        metrics = list(proxy_stats.values())[0].keys()
+
+        N = 2 # only two ratios
+        nb_proxies = len(proxies)
+        width = 0.7/nb_proxies
+
+        print("NB PROXIES: "+str(nb_proxies))
+
+        labels = ('Byte Hit Ratio', 'Hit Ratio')
+
+
+        ind = np.arange(N)
+        fig, ax = plt.subplots()
+
+        colors = ['c','m','y','b','g','r','k','w']
+        rectss = []
+        for stats, i, color in zip(proxy_stats.values(), range(nb_proxies), colors):
+            ratios = []
+            ratios.append(stats['byte_hit_ratio'])
+            ratios.append(stats['hit_ratio'])
+
+            print("RATIOS: "+str(ratios))
+
+            rectsx = ax.bar(ind+i*width, ratios, width, color=color)
+            rectss.append(rectsx)
+
+        ax.set_ylabel('Ratios')
+        ax.set_title('Hit and Byte Hit ratios')
+        ax.set_xticks(ind+width)
+
+        ax.set_xticklabels(labels)
+
+        ax.legend( zip([rectsx[0] for rectsx in rectss]), proxies )
+
+        def autolabel(rects):
+            # attach some text labels
+            for rect in rects:
+                height = rect.get_height()
+                ax.text(rect.get_x()+rect.get_width()/nb_proxies, 1.05*height, '%.2f'%float(height),
+                        ha='center', va='bottom')
+
+        for rectsx in rectss:
+            autolabel(rectsx)
+
+        #plt.show()
+        plt.savefig(path+'/proxy_perfs.png')
+
+    def plot_bar(self, path='graphs', legend=None, *latencies_per_client):
+        """latencies_per_client: ordered dictionnary {1001:[0.9,1.1], 1002:[2.1,3.0,1.1]}
+        """
+        # all latencies should have the same length
+        N = len(latencies_per_client[0])
+        nb_proxies = len(latencies_per_client)
+        width = 0.7/nb_proxies
+
+        print("NB PROXIES: "+str(nb_proxies))
+
+        cMeans = []
+        cStd = []
+        labels = []
+
+        for lpc in latencies_per_client:
+            means = []
+            std = []
+            for client, latencies in lpc.items():
+                means.append(np.mean(latencies))
+                if len(latencies)>1:
+                    #cStd.append(sts.variance(latencies))
+                    std.append(np.amax(latencies)-np.amin(latencies))
+                else:
+                    std.append(0)
+            cMeans.append(means)
+            cStd.append(std)
+
+        for client, latencies in latencies_per_client[0].items():
+            # all labels should be the same and in the same order
+            labels.append(str(client))
+
+
+        ind = np.arange(N)
+        fig, ax = plt.subplots()
+
+        colors = ['c','m','y','b','g','r','k','w']
+        rectss = []
+        for means, std, i, color in zip(cMeans, cStd, range(nb_proxies), colors):
+            rectsx = ax.bar(ind+i*width, means, width, color=color, yerr=std)
+            rectss.append(rectsx)
+        #rects1 = ax.bar(ind, cMeans, width, color='r', yerr=cStd)
+
+        ax.set_ylabel('Latencies')
+        ax.set_title('Mean latency by client')
+        ax.set_xticks(ind+width)
+
+        ax.set_xticklabels(labels)
+
+        if legend == None:
+            legend = []
+            for i in range(nb_proxies):
+                legend.append('Proxy '+str(i))
+        ax.legend( zip([rectsx[0] for rectsx in rectss]), legend )
+
+        def autolabel(rects):
+            # attach some text labels
+            for rect in rects:
+                height = rect.get_height()
+                ax.text(rect.get_x()+rect.get_width()/nb_proxies, 1.05*height, '%.2f'%float(height),
+                        ha='center', va='bottom')
+
+        for rectsx in rectss:
+            autolabel(rectsx)
+
+        #plt.show()
+        plt.savefig(path+'/mean_latencies.png')
 
     def hist_latencies(self, latencies):
         print("hist")

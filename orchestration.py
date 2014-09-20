@@ -4,12 +4,14 @@ import sys
 import traceback
 import sched, time
 import os
+import collections as collec
 
 # to pretty print a time delta
 import datetime
 
 from model import *
 import simu
+import metrics
 
 import cProfile
 import re
@@ -289,7 +291,7 @@ class Orchestrator:
         self._create_clients(list(id_clients))
         pass
 
-    def gather_statistics(self,out_dir='stats'):
+    def gather_statistics(self,out_dir='stats',graphs=False,stats=True):
         """ writes statistics from the metrics to the out_dir 
             For now two files: clients and proxy.
             Format of clients: CSV with a latency and the corresponding id client
@@ -302,8 +304,9 @@ class Orchestrator:
             os.makedirs(out_dir)
 
         print("Writing data to "+out_dir)
+        proxy_name = self.conf['proxy']['proxy_type']
 
-        client_file = open(out_dir+'/clients_latencies', 'w', newline='')
+        client_file = open(out_dir+'/'+proxy_name+'_clients_latencies', 'w', newline='')
         client_keys= ['id_client','playout_latency']
         client_writer = csv.DictWriter(client_file,client_keys,quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
 
@@ -325,6 +328,8 @@ class Orchestrator:
         row_client_stop['id_client'] = None
         row_client_stop['nb_stops'] = None
 
+        latencies_per_client = collec.OrderedDict()
+
         for client in self._clients.values():
             id_client = client.get_id()
             if hasattr(client, 'counter'):
@@ -333,6 +338,7 @@ class Orchestrator:
                 client_stop_writer.writerow(row_client_stop)
             if hasattr(client, 'latencies'):
                 latencies = client.latencies
+                latencies_per_client[id_client] = latencies
                 for latency in latencies:
                     row_client['id_client'] = id_client
                     row_client['playout_latency'] = latency
@@ -341,8 +347,16 @@ class Orchestrator:
         client_file.close()
         client_stop_file.close()
 
+
+        if graphs:
+            ps = metrics.PlotStats()
+            ps.plot_bar(out_dir, None, latencies_per_client, latencies_per_client)
+
+
+        proxy_stats = None
+
         if hasattr(self._proxy, 'get_stats'):
-            proxy_file = open(out_dir+'/proxy', 'w', newline='')
+            proxy_file = open(out_dir+'/'+proxy_name+'_proxy', 'w', newline='')
             proxy_keys= ['id_client','playout_latency']
 
             id_client = client.get_id()
@@ -356,6 +370,8 @@ class Orchestrator:
             proxy_writer.writerow(proxy_stats)
 
             proxy_file.close()
+
+        return (latencies_per_client, proxy_stats)
 
         
     """

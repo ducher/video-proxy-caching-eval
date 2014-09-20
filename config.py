@@ -74,3 +74,11 @@ def set_speed(value):
     global speed
     raw_conf.set('simulation', 'speed', str(value))
     speed = value
+
+def set_data_out(value):
+    global raw_conf
+    raw_conf.set('data', 'data_out', value)
+
+def set_proxy_type(value):
+    global raw_conf
+    raw_conf.set('proxy', 'proxy_type', value)
