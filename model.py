@@ -647,9 +647,10 @@ class FIFOProxy(CachingProxy):
     def _new_video_inserted(self, video):
         self.__cache_fifo.append(video['idVideo'])
 
-class BetterFIFOProxy(CachingProxy):
+class LRUProxy(CachingProxy):
     """ cache video in a limited size cache, 
         remove the oldest video(s) when full
+        discards the least recently used video
     """
     def __init__(self, *args, **kargs):
         CachingProxy.__init__(self, *args, **kargs)

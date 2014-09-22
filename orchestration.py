@@ -260,7 +260,7 @@ class Orchestrator:
                 print("run_simulation error: no method specified!")
         except (KeyboardInterrupt, SystemExit):
             print(' ')
-            print("Simulation interupted. To exist, press ctrl+c again.")
+            print("Simulation interupted. To exit, press ctrl+c again.")
             print(' ')
             #return
 
@@ -312,7 +312,7 @@ class Orchestrator:
 
         client_writer.writeheader()
 
-        client_stop_file = open(out_dir+'/clients_stops', 'w', newline='')
+        client_stop_file = open(out_dir+'/'+proxy_name+'_clients_stops', 'w', newline='')
         client_stop_keys= ['id_client','nb_stops']
         client_stop_writer = csv.DictWriter(client_stop_file,client_stop_keys,quoting=csv.QUOTE_NONNUMERIC,delimiter=',')
 
