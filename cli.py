@@ -17,6 +17,12 @@ import copy
 #def compare(prox1, prox2):
 
 def run_simu(conf_orch, data_out):
+    """ This is used to run two simulations in two different threads.
+
+        Args:
+            conf_orch (dict): configuration for the Orchestrator
+            data_out (str): path to save the data output
+    """
     o = orchestration.Orchestrator(conf=conf_orch)
     #o.load_trace()
     #o.load_video_db()
@@ -88,6 +94,7 @@ if __name__ == "__main__":
     print(str(conf))
     
     if args.proxy2:
+        """ case where we want to have a comparison """
         conf_orch2 = copy.deepcopy(conf_orch)
         conf_orch2['proxy']['proxy_type'] = args.proxy2  
 
@@ -124,6 +131,7 @@ if __name__ == "__main__":
                               }
                               )
     else:
+        """ we don't want a comparison, just one simulation """
         lpc1 = None
         ps1 = None
         

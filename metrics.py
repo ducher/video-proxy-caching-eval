@@ -1,4 +1,56 @@
 #coding=utf-8
+""" 
+Presentation
+============
+
+This module contains everything related to the metrics. The Decartors are the
+metrics for the Client class, the ProxyHitCounter is to be inherited from by 
+proxies.
+
+Using a decorator
+=================
+
+To use a decorator to monitor a class:
+
+.. code-block:: python
+
+    # this will time how long it takes to start playing a video along with how many times
+    # the video stopped during playback.
+    @TwoMethodsTimerAndCounter('request_media', 'start_playback', '_video_stopped', 0, 'id_media')
+    class MetricClient(Client):
+        pass
+
+A more simple example with TwoMethodsTimer applied to a standard class:
+
+.. code-block:: python
+
+    class Foo:
+
+        def bar(self):
+            print("bar")
+
+        def foobar(self):
+            print("foobar")
+
+    @TwoMethodsTimer('bar', 'foobar')
+    class TimedFoo(Foo):
+        pass
+
+Then to use it:
+
+>>> f = TimedFoo()
+>>> f.bar()
+bar
+>>> time.sleep(1) # we wait
+>>> f.foobar()
+foobar
+>>> print(f.latencies)
+[1.02]
+
+
+Code documentation
+==================
+"""
 import time
 
 import matplotlib.pyplot as plt
@@ -11,6 +63,16 @@ import simu
 # To time how long it takes to receive a response to a request
 # keeps track of the packetId, so that mangled calls can be distinguished
 def PacketTimer(func1, func2):                        # On @ decorator
+    """ Decorator to time how long it takes to receive a response to a request
+        keeps track of the packetId, so that mangled calls can be distinguished
+
+        Args:
+            func1 (function): first function to start the timer. Calling 
+            it will start the timer.
+            func2 (function): second function to stop the timer. Calling 
+            it will stop the timer and store the time in the datastructure.
+
+    """
     def ClassBuilder(aClass):
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
@@ -64,6 +126,26 @@ def PacketTimer(func1, func2):                        # On @ decorator
 # Counts how many times func3 has been called
 # param: parameter to track in func1 and func2 when having multiple requests at the same time
 def TwoMethodsTimerAndCounter(func1, func2, func3, param_pos=None, param_name=None):           # On @ decorator
+    """ Time how long between the last call of func1 and first call of func2.
+        Once func2 has been called, can time another interval.
+        Counts how many times func3 has been called.
+        To differentiate the func2 call that corresponds to a certain func1 call,
+        it will use the parameter in func1 and func2 specified by param_pos and
+        param_name to keep track of the calls.
+
+        Args:
+            func1 (function): first function to start the timer. Calling 
+                              it will start the timer.
+            func2 (function): second function to stop the timer. Calling 
+                              it will stop the timer and store the time in the 
+                              datastructure.
+            func3 (function): function for which we want to count the number of 
+                              calls
+            param_pos (int): the position of the parameter to keep track of the 
+                             calls between func1 and func2.
+            param_name (str): the name of the parameter to keep track of the 
+                              calls between func1 and func2.
+    """
     def ClassBuilder(aClass):
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
@@ -135,6 +217,16 @@ def TwoMethodsTimerAndCounter(func1, func2, func3, param_pos=None, param_name=No
 # Time how long between the last call of func1 and first call of func2.
 # Once func2 has been called, can time another interval.
 def TwoMethodsTimer(func1, func2):                        # On @ decorator
+    """ Time how long between the last call of func1 and first call of func2.
+        Once func2 has been called, can time another interval.
+
+        Args:
+            func1 (function): first function to start the timer. Calling 
+                              it will start the timer.
+            func2 (function): second function to stop the timer. Calling 
+                              it will stop the timer and store the time in the 
+                              datastructure.
+    """
     def ClassBuilder(aClass):
         class Wrapper:
             def __init__(self, *args, **kargs):           # On instance creation
@@ -182,6 +274,11 @@ def TwoMethodsTimer(func1, func2):                        # On @ decorator
     return ClassBuilder
 
 class ProxyHitCounter:
+    """ Class to inherit from for proxies to have hit stats.
+
+        The inherited class must call _from_cache() and _from_server() when
+        serving a video from the cache or not. Then, get_stats() can be used.
+    """
     
     def __init__(self):
         self._cache_hits = 0
@@ -215,6 +312,18 @@ class ProxyHitCounter:
         return self.get_hit_stats()
 
     def get_hit_stats(self):
+        """ 
+            Returns:
+                A dictionnary containing the stats, fields:
+
+                - cache_hits (int): number of time the data was served from the 
+                                    cache
+                - nb_served (int): total number of objects served
+                - hit_ratio (float): cache_hits/nb_served
+                - byte_cache (int): number of bytes served from the cache
+                - byte_served (int): total number of bytes served
+                - byte_hit_ratio (float): byte_cache/byte_served
+        """
         hit_ratio = 0
         byte_hit_ratio = 0
         if self._nb_served != 0:
@@ -230,8 +339,9 @@ class ProxyHitCounter:
 
 
 class PlotStats:
-
-
+    """ Class to plot the statistics/metrics of the clients and proxy and save 
+        it in PNG pictures.
+    """
 
     def plot_latencies(self, latencies):
         print("plot")
@@ -240,9 +350,15 @@ class PlotStats:
         plt.show()
 
     def plot_cache_stats(self, path='graphs', proxy_stats=None):
-        """ proxy_stats: dictionnary
-            Example:
-            {
+        """ Bar graph with the hit ratio and byte hit ratio of one or more 
+            proxies.
+
+            Args:
+                path (str): where to save the file
+                proxy_stats (dict): dictionnary
+            Example of proxy_stats:
+
+            >>> {
                 'FIFOProxy':
                     {
                         "byte_served":9733.5,
@@ -257,6 +373,7 @@ class PlotStats:
                      ...
                     }
             }
+
         """
         # Example data
         proxies = proxy_stats.keys()
@@ -308,7 +425,17 @@ class PlotStats:
         plt.savefig(path+'/proxy_perfs.png')
 
     def plot_bar(self, path='graphs', legend=None, *latencies_per_client):
-        """latencies_per_client: ordered dictionnary {1001:[0.9,1.1], 1002:[2.1,3.0,1.1]}
+        """ Writes a bar graph on disk with the mean latency of each client.
+            Looks very messy when there are too many clients.
+
+            Args:
+                path (str): where to save the png file
+                legend (list): name of the proxies, in same order as the other 
+                               parameter
+                latencies_per_client (dict): ordered dictionnary containging the 
+                                      latencies associated with the id of 
+                                      each client: 
+                                      {1001:[0.9,1.1], 1002:[2.1,3.0,1.1]}
         """
         # all latencies should have the same length
         N = len(latencies_per_client[0])
@@ -374,8 +501,16 @@ class PlotStats:
         #plt.show()
         plt.savefig(path+'/mean_latencies.png')
 
-    def hist_latencies(self, latencies):
+    def hist_latencies(self, latencies, path='graphs', nb_bins=3):
+        """ Draws an histogram of the latencies, with 3 bins by default.
+
+            Args:
+                path (str): where to save the png file
+                latencies (list): all latencies, not ordered
+                nb_bins (int): desired number of bins
+        """
         print("hist")
         print(latencies)
-        plt.hist(latencies,bins=3)
-        plt.show()
+        plt.hist(latencies,bins=nb_bins)
+        #plt.show()
+        plt.savefig(path+'/hist_latencies.png')

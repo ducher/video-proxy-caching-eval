@@ -1,4 +1,15 @@
-# test module for the framework
+#coding=utf-8
+""" 
+Presentation
+============
+This module contains unit and functional tests of the model module.
+To run it:
+
+~$ python -m unittest tests
+
+Listing of the tests
+==================
+"""
 
 from model import *
 from metrics import *

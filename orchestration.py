@@ -1,4 +1,14 @@
 #coding=utf-8
+""" 
+Presentation
+============
+This module contains the orchetrator, responsible for reading trace
+and database files and running the simulation according to those fies.
+It will also write the resulting data once the simulation is done.
+
+Code documentation
+==================
+"""
 import csv
 import sys
 import traceback
@@ -51,34 +61,34 @@ class Orchestrator:
             {
              'orchestration':
                 {
-                 'method': 'event_lock'|'scheduler'
-                 'skip_inactivity': True|False
-                 'trace_file': '/path/to/file' (optional when passing args to set_up())
-                 'db_file': '/path/to/file' (optional when passing args to set_up())
-                }
+                 'method': 'event_lock'|'scheduler',
+                 'skip_inactivity': True|False,
+                 'trace_file': '/path/to/file' (optional when passing args to set_up()),
+                 'db_file': '/path/to/file' (optional when passing args to set_up()),
+                },
              'proxy':
                 {
-                 'proxy_type': NameOfTheProxyClass
-                 'cache_size': int (only for proxy inheriting from CachingProxy)
-                 'module': modulename (only when using your own proxy in your own module)
-                }
+                 'proxy_type': NameOfTheProxyClass,
+                 'cache_size': int (only for proxy inheriting from CachingProxy),
+                 'module': modulename (only when using your own proxy in your own module),
+                },
              'clients':
                 {
-                 'up': int (speed in kb/s)
-                 'down': int (speed in kb/s)
-                 'lag_up': float (latency in seconds)
-                 'lag_down': float (latency in seconds)
-                 'max_chunk': int (size in kb)
-                 'consume_videos': True|False
-                 'metrics': (not used yet)
-                }
+                 'up': int (speed in kb/s),
+                 'down': int (speed in kb/s),
+                 'lag_up': float (latency in seconds),
+                 'lag_down': float (latency in seconds),
+                 'max_chunk': int (size in kb),
+                 'consume_videos': True|False,
+                 'metrics': (not used yet),
+                },
              'servers':
                 {
-                 'up': int (speed in kb/s)
-                 'down': int (speed in kb/s)
-                 'lag_up': float (latency in seconds)
-                 'lag_down': float (latency in seconds)
-                 'max_chunk': int (size in kb)
+                 'up': int (speed in kb/s),
+                 'down': int (speed in kb/s),
+                 'lag_up': float (latency in seconds),
+                 'lag_down': float (latency in seconds),
+                 'max_chunk': int (size in kb),
                 }
             }
         """
